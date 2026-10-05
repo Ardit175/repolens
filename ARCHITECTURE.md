@@ -5,8 +5,8 @@ repolens is a codebase indexing system designed to prepare source code for LLM c
 ## Modules
 
 - **cli**: Command-line interface (entry point, built on commander)
-- **walker**: Traverses directories and identifies code files (respects .gitignore)
-- **language**: Detects language and extracts symbols using tree-sitter
+- **walker**: Walks a directory, honouring nested .gitignore files and skipping binary and oversized files
+- **language**: Detects a file's language from its extension or shebang
 - **chunker**: Breaks code into meaningful chunks (M2)
 - **embeddings**: Converts text to vectors via Azure OpenAI or local transformers.js (M2)
 - **store**: Vector database interface with Qdrant backend and in-memory implementation (M2)
@@ -19,7 +19,7 @@ repolens is a codebase indexing system designed to prepare source code for LLM c
 graph LR
   Files[Files on disk]
   Walker[Walker]
-  Language[Language<br/>Detection & Parse]
+  Language[Language<br/>Detection]
   Chunker[Chunker]
   Embeddings[Embeddings<br/>Azure OpenAI /<br/>transformers.js]
   Store[Vector Store<br/>Qdrant]
@@ -28,7 +28,7 @@ graph LR
 
   Files -->|Directory traversal| Walker
   Walker -->|Code files| Language
-  Language -->|Symbols & AST| Chunker
+  Language -->|Files with language| Chunker
   Chunker -->|Code chunks| Embeddings
   Embeddings -->|Vectors| Store
   Store -->|Search & lookup| MCP
