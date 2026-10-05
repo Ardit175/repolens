@@ -1,0 +1,10 @@
+dist
+coverage
+node_modules
+package-lock.json
+test/fixtures
+CLAUDE.md
+DECISIONS.md
+PLAN.md
+PROGRESS.md
+CHANGELOG.md

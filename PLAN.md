@@ -10,13 +10,20 @@ _Nothing waiting._
 
 ## Milestones
 
+### M0 Engineering foundation
+- [x] CI, lint, format, typecheck, coverage, build, `npm pack --dry-run`, `npm run check`, PR template, Dependabot, gitleaks and CodeQL, PR title check, ARCHITECTURE.md
+- [ ] Workflow files need pushing (see Needs Ardit if the push is rejected)
+- [ ] Pre-commit hooks
+- [ ] Release workflow (release-please), cut v0.1.0 when M1 is released
+- [ ] docker-compose.yml for Qdrant, MCP contract test, fixture repos in test/fixtures, benchmark script (arrive with M2 to M4)
+
 ### M1 Scaffold
-- [ ] TypeScript project on Node 22 (ESM, strict), package `@ardit175/repolens` with a `repolens` bin, ESLint, Prettier, Vitest with coverage
-- [ ] `repolens index <path>` CLI command (commander) with `--help` and clear errors
-- [ ] File walker that respects `.gitignore` (nested files too), skips binaries and large files, has a configurable max size
-- [ ] Language detection by extension and shebang
-- [ ] GitHub Actions CI: lint, typecheck and tests on Node 22 and 24
-- [ ] README with a quick start
+- [x] TypeScript project on Node 22 (ESM, strict), package `@ardit175/repolens` with a `repolens` bin, ESLint, Prettier, Vitest with coverage
+- [x] `repolens index <path>` CLI command (commander) with `--help` and clear errors
+- [x] File walker that respects `.gitignore` (nested files too), skips binaries and large files, has a configurable max size
+- [x] Language detection by extension and shebang
+- [x] GitHub Actions CI: lint, typecheck and tests on Node 22 and 24
+- [x] README with a quick start
 
 ### M2 Chunking (TS/JS, Python, C#)
 - [ ] Parser layer on web-tree-sitter (WASM grammars) with one adapter per language
