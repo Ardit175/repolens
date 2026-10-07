@@ -17,6 +17,9 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Languages:** M2 covers TypeScript/JavaScript, Python and C#. Java moves to M8.
 - **Parsing:** web-tree-sitter (WASM grammars) rather than native node-tree-sitter, so `npx` installs don't need a C++ toolchain. (Choice made during setup.)
 - **CLI framework:** commander. (Choice made during setup: small, well known.)
+- **Git hooks (2026-10-07):** plain `.githooks/pre-commit` enabled by a `prepare` script, instead of husky and lint-staged. No new dependency, and the hook just runs the fast CI checks.
+- **Releases (2026-10-07):** release-please (GitHub Action, no npm dependency) opens release PRs from conventional commits. Merging one tags the version and writes notes. `bump-minor-pre-major` keeps 0.x bumps as minors.
+- **Qdrant image (2026-10-07):** `qdrant/qdrant` pinned to a version in docker-compose.yml, so local and CI behave the same.
 
 ## Environment variables
 | Name | Used for | Required |
