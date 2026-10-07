@@ -13,9 +13,10 @@ _Nothing waiting._
 ### M0 Engineering foundation
 - [x] CI, lint, format, typecheck, coverage, build, `npm pack --dry-run`, `npm run check`, PR template, Dependabot, gitleaks and CodeQL, PR title check, ARCHITECTURE.md
 - [ ] Workflow files need pushing (see Needs Ardit if the push is rejected)
-- [ ] Pre-commit hooks
-- [ ] Release workflow (release-please), cut v0.1.0 when M1 is released
-- [ ] docker-compose.yml for Qdrant, MCP contract test, fixture repos in test/fixtures, benchmark script (arrive with M2 to M4)
+- [x] Pre-commit hooks
+- [x] Release workflow (release-please); cut v0.1.0 by merging its release PR when M1 is released
+- [x] docker-compose.yml for Qdrant
+- [ ] MCP contract test, fixture repos in test/fixtures, benchmark script (arrive with M2 to M4)
 
 ### M1 Scaffold
 - [x] TypeScript project on Node 22 (ESM, strict), package `@ardit175/repolens` with a `repolens` bin, ESLint, Prettier, Vitest with coverage
