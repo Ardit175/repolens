@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fast local gate: the same lint, format and type checks CI runs.
+set -e
+npm run --silent lint
+npm run --silent format:check
+npm run --silent typecheck
