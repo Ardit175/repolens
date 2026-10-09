@@ -6,7 +6,13 @@ Decisions behind this plan are in DECISIONS.md. Runs work top to bottom.
 
 ## Needs Ardit
 
-_Nothing waiting._
+### Release workflow cannot open PRs
+The Release workflow on main fails with "GitHub Actions is not permitted to create or approve pull requests". I cannot change this repo setting. How do you want to fix it?
+- A (recommended): Settings > Actions > General > Workflow permissions, tick "Allow GitHub Actions to create and approve pull requests".
+- B: Add a repo secret `RELEASE_PLEASE_TOKEN` (a fine-grained PAT with contents and pull-requests write) and I will switch the workflow to it.
+- C: Drop release-please and tag releases by hand.
+
+Answer: _(write here)_
 
 ## Milestones
 
@@ -27,12 +33,12 @@ _Nothing waiting._
 - [x] README with a quick start
 
 ### M2 Chunking (TS/JS, Python, C#)
-- [ ] Parser layer on web-tree-sitter (WASM grammars) with one adapter per language
-- [ ] Function-, method- and class-level chunks for TypeScript/JavaScript (TS, TSX, JS, JSX)
+- [x] Parser layer on web-tree-sitter (WASM grammars) with one adapter per language (TS/JS adapter done; Python and C# adapters arrive with their items)
+- [x] Function-, method- and class-level chunks for TypeScript/JavaScript (TS, TSX, JS, JSX)
 - [ ] Same for Python
 - [ ] Same for C#
-- [ ] Chunk metadata: path, language, symbol name, symbol kind, parent symbol, line range and content hash. Fallback chunking for unsupported files
-- [ ] Fixture-based tests per language
+- [x] Chunk metadata: path, language, symbol name, symbol kind, parent symbol, line range and content hash. Fallback chunking for unsupported files
+- [ ] Fixture-based tests per language (TS/JS done; Python and C# pending)
 
 ### M3 Embeddings and storage
 - [ ] `EmbeddingProvider` interface with Azure OpenAI (`text-embedding-3-small` deployment) and local transformers.js providers, `auto` selection, and batching with retry/backoff
