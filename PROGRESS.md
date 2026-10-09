@@ -18,3 +18,9 @@ One entry per scheduled run, newest last.
 - Next: M2 chunking, starting with the web-tree-sitter parser layer.
 - Design decision: the pre-commit hook is a plain script in `.githooks/` rather than husky. It adds no dependency and runs the same fast checks as CI, so it is easy to read and explain.
 - LinkedIn: repolens now checks code quality before every commit and prepares versioned releases automatically from commit messages.
+
+## 2026-10-09 M2 chunking, TS/JS
+- Built: web-tree-sitter parser layer, TypeScript/TSX/JavaScript/JSX chunker (functions, arrow functions, classes, methods, interfaces, types, enums), chunk metadata with SHA-256 hashes, fallback line-window chunking, fixtures and tests. Found the Release workflow failing on main (Actions may not open PRs); added a Needs Ardit item.
+- Next: Python and C# adapters, then M3 embeddings and storage.
+- Design decision: a class chunk stops before its first method and each method is its own chunk with a parent name. Embedding the whole class and every method would store the same code twice and blur search results, so each line of code lives in exactly one chunk.
+- LinkedIn: repolens can now cut TypeScript and JavaScript files into function and class sized pieces using a real parser, which is what makes search results point at the right code.

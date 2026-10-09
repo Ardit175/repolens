@@ -38,6 +38,8 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "ignore": "^7.0.12"
+    "ignore": "^7.0.12",
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.25.10"
   }
 }
