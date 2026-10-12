@@ -1,8 +1,10 @@
 import type { Node } from 'web-tree-sitter';
 import type { Language } from '../language.js';
 import { makeChunk } from './chunk.js';
+import { extractCSharpSymbols } from './csharp.js';
 import { fallbackChunks } from './fallback.js';
 import { parse, type Grammar } from './parser.js';
+import { extractPythonSymbols } from './python.js';
 import type { Chunk, RawSymbol } from './types.js';
 import { extractTypeScriptSymbols } from './typescript.js';
 
@@ -18,6 +20,8 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   tsx: { grammar: 'tsx', extract: extractTypeScriptSymbols },
   javascript: { grammar: 'javascript', extract: extractTypeScriptSymbols },
   jsx: { grammar: 'javascript', extract: extractTypeScriptSymbols },
+  csharp: { grammar: 'c_sharp', extract: extractCSharpSymbols },
+  python: { grammar: 'python', extract: extractPythonSymbols },
 };
 
 /**
