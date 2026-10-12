@@ -33,12 +33,12 @@ Answer: _(write here)_
 - [x] README with a quick start
 
 ### M2 Chunking (TS/JS, Python, C#)
-- [x] Parser layer on web-tree-sitter (WASM grammars) with one adapter per language (TS/JS adapter done; Python and C# adapters arrive with their items)
+- [x] Parser layer on web-tree-sitter (WASM grammars) with one adapter per language (TS/JS, Python and C# adapters)
 - [x] Function-, method- and class-level chunks for TypeScript/JavaScript (TS, TSX, JS, JSX)
-- [ ] Same for Python
-- [ ] Same for C#
+- [x] Same for Python
+- [x] Same for C#
 - [x] Chunk metadata: path, language, symbol name, symbol kind, parent symbol, line range and content hash. Fallback chunking for unsupported files
-- [ ] Fixture-based tests per language (TS/JS done; Python and C# pending)
+- [x] Fixture-based tests per language (TS/JS, Python, C#)
 
 ### M3 Embeddings and storage
 - [ ] `EmbeddingProvider` interface with Azure OpenAI (`text-embedding-3-small` deployment) and local transformers.js providers, `auto` selection, and batching with retry/backoff
