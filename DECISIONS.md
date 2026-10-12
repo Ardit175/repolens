@@ -22,6 +22,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Qdrant image (2026-10-07):** `qdrant/qdrant` pinned to a version in docker-compose.yml, so local and CI behave the same.
 - **Tree-sitter grammars (2026-10-09):** `web-tree-sitter` (runtime) and `tree-sitter-wasms` (prebuilt WASM grammars for TS, TSX, JS, Python and C#). Prebuilt grammars avoid building or hosting WASM files ourselves; GitHub release downloads are blocked in cloud runs, so a downloader was not an option.
 - **Chunk shape (2026-10-09):** a class chunk holds the leading comment, header and fields up to the first method; each method is its own chunk with `parent` set. Nothing is embedded twice. Nested functions stay inside their enclosing chunk.
+- **Nested types (2026-10-12):** in C#, a nested type is its own chunk whose `parent` is the outer type; methods take the nearest type as parent. Python only chunks direct methods of top-level classes.
 
 ## Environment variables
 | Name | Used for | Required |

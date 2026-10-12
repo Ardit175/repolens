@@ -24,3 +24,9 @@ One entry per scheduled run, newest last.
 - Next: Python and C# adapters, then M3 embeddings and storage.
 - Design decision: a class chunk stops before its first method and each method is its own chunk with a parent name. Embedding the whole class and every method would store the same code twice and blur search results, so each line of code lives in exactly one chunk.
 - LinkedIn: repolens can now cut TypeScript and JavaScript files into function and class sized pieces using a real parser, which is what makes search results point at the right code.
+
+## 2026-10-12 M2 chunking, Python and C#
+- Built: Python adapter (functions, classes, methods, decorators, comments) and C# adapter (classes, structs, records, interfaces, enums, constructors, methods, nested types, block and file-scoped namespaces), with fixtures and tests. M2 is complete.
+- Next: M3 embeddings and storage, starting with the EmbeddingProvider interface and the in-memory vector store. The Release workflow permission question is still open under Needs Ardit.
+- Design decision: each language gets its own small adapter that returns the same plain symbol shape, and one shared function turns symbols into chunks. Adding a language then means writing one extraction function, and chunk rules like hashing and line numbers stay in one place.
+- LinkedIn: repolens now splits Python and C# code into function and class sized pieces the same way it does for TypeScript, so search works across all three languages.
