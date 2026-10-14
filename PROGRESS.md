@@ -30,3 +30,9 @@ One entry per scheduled run, newest last.
 - Next: M3 embeddings and storage, starting with the EmbeddingProvider interface and the in-memory vector store. The Release workflow permission question is still open under Needs Ardit.
 - Design decision: each language gets its own small adapter that returns the same plain symbol shape, and one shared function turns symbols into chunks. Adding a language then means writing one extraction function, and chunk rules like hashing and line numbers stay in one place.
 - LinkedIn: repolens now splits Python and C# code into function and class sized pieces the same way it does for TypeScript, so search works across all three languages.
+
+## 2026-10-14 M3 embeddings and vector store
+- Built: `EmbeddingProvider` with Azure OpenAI and local transformers.js providers, auto selection, batching and retry with backoff; `VectorStore` with in-memory and Qdrant backends and a shared contract test; Qdrant service container added to CI.
+- Next: `repolens doctor`, incremental re-index by file hash, then `repolens search`. Docker Hub rate-limited the Qdrant pull in this run, so CI is the first real Qdrant run. The Release workflow permission question is still open under Needs Ardit.
+- Design decision: both stores are tested by one shared contract function, so the in-memory fake that most tests use is held to exactly the same behaviour as real Qdrant. Azure and Qdrant are called with plain fetch instead of SDKs, which keeps dependencies small and makes the request shapes easy to test with a fake fetch.
+- LinkedIn: repolens can now turn code chunks into vectors with either Azure OpenAI or a local model and store them in Qdrant, and the same tests run against a fake store and the real one.
