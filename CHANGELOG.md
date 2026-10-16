@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- 2026-10-16: M3 almost finished: incremental `repolens index` (only changed files are re-embedded, deleted files removed), `repolens search` with path and language filters, `repolens doctor`, `.env.example`.
 - 2026-10-14: M3 start: `EmbeddingProvider` with Azure OpenAI and local transformers.js (auto selection, batching, retry with backoff), and `VectorStore` with in-memory and Qdrant backends.
 - 2026-10-12: M2 finished: Python and C# symbol chunking (classes, structs, records, methods, nested types, namespaces) with fixtures and tests.
 - 2026-10-09: M2 start: web-tree-sitter parser layer, TS/TSX/JS/JSX symbol chunking with metadata and hashes, line-window fallback chunking.
