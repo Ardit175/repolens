@@ -104,32 +104,32 @@ describe('QdrantVectorStore', () => {
     });
   });
 
-  describe('listHashesByPath', () => {
-    it('follows next_page_offset and groups hashes by path', async () => {
+  describe('listIdsByPath', () => {
+    it('follows next_page_offset and groups ids by path', async () => {
       const { store, calls } = setup([
         json({
           result: {
             points: [
-              { payload: { path: 'a.ts', hash: 'h1' } },
-              { payload: { path: 'a.ts', hash: 'h2' } },
+              { id: 'id1', payload: { path: 'a.ts' } },
+              { id: 'id2', payload: { path: 'a.ts' } },
               { payload: {} },
             ],
             next_page_offset: 'page-2',
           },
         }),
         json({
-          result: { points: [{ payload: { path: 'b.ts', hash: 'h3' } }], next_page_offset: null },
+          result: { points: [{ id: 7, payload: { path: 'b.ts' } }], next_page_offset: null },
         }),
       ]);
-      const map = await store.listHashesByPath();
+      const map = await store.listIdsByPath();
       expect(map).toEqual(
         new Map([
-          ['a.ts', ['h1', 'h2']],
-          ['b.ts', ['h3']],
+          ['a.ts', ['id1', 'id2']],
+          ['b.ts', ['7']],
         ]),
       );
       expect(calls).toHaveLength(2);
-      expect(calls[0]!.body).toMatchObject({ with_payload: ['path', 'hash'], with_vector: false });
+      expect(calls[0]!.body).toMatchObject({ with_payload: ['path'], with_vector: false });
       expect(calls[0]!.body.offset).toBeUndefined();
       expect(calls[1]!.body.offset).toBe('page-2');
       expect(calls[1]!.url).toBe('http://qdrant:6333/collections/repolens/points/scroll');

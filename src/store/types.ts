@@ -25,8 +25,8 @@ export interface VectorStore {
   /** Inserts items, replacing any item with the same id. */
   upsert(items: StoredChunk[]): Promise<void>;
   deleteByPath(path: string): Promise<void>;
-  /** Maps each indexed path to the hashes of its chunks, for incremental re-index. */
-  listHashesByPath(): Promise<Map<string, string[]>>;
+  /** Maps each indexed path to the ids of its chunks (see `chunkId`), for incremental re-index. */
+  listIdsByPath(): Promise<Map<string, string[]>>;
   search(vector: number[], limit: number, filter?: SearchFilter): Promise<SearchHit[]>;
   count(): Promise<number>;
 }
