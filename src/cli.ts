@@ -2,7 +2,11 @@
 import { closeSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
+import { formatDoctor, runDoctor } from './doctor.js';
+import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
+import { createRuntime, type Runtime } from './runtime.js';
+import { formatHits, searchIndex } from './search.js';
 import { walkFiles } from './walker.js';
 
 export interface Io {
@@ -14,6 +18,12 @@ const defaultIo: Io = {
   out: (s) => process.stdout.write(s),
   err: (s) => process.stderr.write(s),
 };
+
+export interface Deps {
+  createRuntime: () => Runtime;
+}
+
+const defaultDeps: Deps = { createRuntime: () => createRuntime() };
 
 const SHEBANG_PROBE_BYTES = 256;
 
@@ -58,7 +68,7 @@ function formatSummary(total: number, counts: Map<string, number>, unrecognised:
   return lines.join('\n') + '\n';
 }
 
-async function runIndex(root: string, maxFileSize: number | undefined, io: Io): Promise<void> {
+async function runDryRun(root: string, maxFileSize: number | undefined, io: Io): Promise<void> {
   const files = await walkFiles(root, maxFileSize === undefined ? {} : { maxFileSize });
   const counts = new Map<string, number>();
   let unrecognised = 0;
@@ -77,7 +87,23 @@ async function runIndex(root: string, maxFileSize: number | undefined, io: Io): 
   io.out(formatSummary(files.length, counts, unrecognised));
 }
 
-export function buildProgram(io: Io = defaultIo): Command {
+function formatIndexStats(stats: IndexStats): string {
+  const lines = [
+    `Scanned ${stats.filesScanned} file${stats.filesScanned === 1 ? '' : 's'}`,
+    `Changed: ${stats.filesChanged} (${stats.chunksEmbedded} chunks embedded)`,
+    `Unchanged: ${stats.filesUnchanged}`,
+    `Removed: ${stats.filesRemoved}`,
+  ];
+  if (stats.filesSkipped > 0) lines.push(`Skipped (unreadable or binary): ${stats.filesSkipped}`);
+  return lines.join('\n') + '\n';
+}
+
+function fail(io: Io, error: unknown): void {
+  io.err(`error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+}
+
+export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Command {
   const program = new Command('repolens');
   program
     .description('Index a codebase and serve it to LLMs.')
@@ -94,16 +120,57 @@ export function buildProgram(io: Io = defaultIo): Command {
 
   program
     .command('index')
-    .description('Walk a directory and summarise the files by language')
+    .description('Embed a directory into the vector store, re-embedding only changed files')
     .argument('<path>', 'directory to index')
     .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
-    .action(async (target: string, options: { maxFileSize?: number }) => {
+    .option('--dry-run', 'only walk the directory and summarise files by language')
+    .action(async (target: string, options: { maxFileSize?: number; dryRun?: boolean }) => {
       try {
-        await runIndex(target, options.maxFileSize, io);
+        if (options.dryRun) {
+          await runDryRun(target, options.maxFileSize, io);
+          return;
+        }
+        const { store, embeddings } = deps.createRuntime();
+        const stats = await indexRepository({
+          root: target,
+          store,
+          embeddings,
+          ...(options.maxFileSize === undefined ? {} : { maxFileSize: options.maxFileSize }),
+        });
+        io.out(formatIndexStats(stats));
       } catch (error) {
-        io.err(`error: ${error instanceof Error ? error.message : String(error)}\n`);
-        process.exitCode = 1;
+        fail(io, error);
       }
+    });
+
+  program
+    .command('search')
+    .description('Search the index with a natural-language query')
+    .argument('<query>', 'what to look for')
+    .option('-n, --limit <count>', 'number of results', parsePositiveInt, 5)
+    .option('--path <prefix>', 'only files under this directory, e.g. src/')
+    .option('--language <name>', 'only this language, e.g. typescript')
+    .action(async (query: string, options: { limit: number; path?: string; language?: string }) => {
+      try {
+        const { store, embeddings } = deps.createRuntime();
+        const filter = {
+          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+          ...(options.language === undefined ? {} : { language: options.language }),
+        };
+        const hits = await searchIndex({ store, embeddings, query, limit: options.limit, filter });
+        io.out(formatHits(hits));
+      } catch (error) {
+        fail(io, error);
+      }
+    });
+
+  program
+    .command('doctor')
+    .description('Check Node, Qdrant and the embedding provider configuration')
+    .action(async () => {
+      const results = await runDoctor();
+      io.out(formatDoctor(results));
+      if (results.some((r) => r.status === 'fail')) process.exitCode = 1;
     });
 
   // Subcommands inherit output config and exit override from the parent.
