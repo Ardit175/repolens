@@ -42,10 +42,10 @@ Answer: _(write here)_
 
 ### M3 Embeddings and storage
 - [x] `EmbeddingProvider` interface with Azure OpenAI (`text-embedding-3-small` deployment) and local transformers.js providers, `auto` selection, and batching with retry/backoff
-- [x] `VectorStore` interface with a Qdrant implementation and an in-memory implementation for tests (the Qdrant integration test runs in CI against a service container; Docker Hub rate-limited the image pull in the run that built it, so it has not run locally yet)
-- [ ] `docker-compose.yml` for Qdrant plus a `repolens doctor` check
-- [ ] Incremental re-index by file hash (only changed or removed files are touched)
-- [ ] `repolens search "<query>"` with path/language filters and readable output
+- [x] `VectorStore` interface with a Qdrant implementation and an in-memory implementation for tests (the Qdrant integration test runs in CI against a service container; Docker Hub rate-limited the image pull in the run that built it, so it has not run locally yet; Docker Hub rate-limited the pull again on 2026-10-16, so the new end-to-end indexer test also waits for CI)
+- [x] `docker-compose.yml` for Qdrant plus a `repolens doctor` check
+- [x] Incremental re-index by chunk id (path, start line, content hash) (only changed or removed files are touched)
+- [x] `repolens search "<query>"` with path/language filters and readable output
 - [ ] Opt-in Azure smoke test (`RUN_SMOKE=1`): the test file exists in src/embeddings/smoke.test.ts but has not been run against real Azure; tick it after a run with the key
 
 ### M4 MCP server

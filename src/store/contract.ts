@@ -33,7 +33,7 @@ export function runVectorStoreContract(name: string, makeStore: () => Promise<Ve
 
     it('starts empty', async () => {
       expect(await store.count()).toBe(0);
-      expect(await store.listHashesByPath()).toEqual(new Map());
+      expect(await store.listIdsByPath()).toEqual(new Map());
     });
 
     it('ensureCollection is idempotent and rejects other dimensions', async () => {
@@ -106,16 +106,20 @@ export function runVectorStoreContract(name: string, makeStore: () => Promise<Ve
       expect(hits.map((h) => h.chunk.path)).toEqual(['src/b.ts']);
     });
 
-    it('lists chunk hashes by path', async () => {
+    it('lists chunk ids by path', async () => {
+      const first = makeChunk('src/a.ts', { startLine: 1, hash: 'h1' });
+      const second = makeChunk('src/a.ts', { startLine: 10, hash: 'h2' });
+      const third = makeChunk('src/b.ts', { hash: 'h3' });
+      const ids = [chunkId(first), chunkId(second)].sort();
       await store.upsert([
-        stored(makeChunk('src/a.ts', { startLine: 1, hash: 'h1' }), [1, 0, 0]),
-        stored(makeChunk('src/a.ts', { startLine: 10, hash: 'h2' }), [0, 1, 0]),
-        stored(makeChunk('src/b.ts', { hash: 'h3' }), [0, 0, 1]),
+        stored(first, [1, 0, 0]),
+        stored(second, [0, 1, 0]),
+        stored(third, [0, 0, 1]),
       ]);
-      const map = await store.listHashesByPath();
+      const map = await store.listIdsByPath();
       expect([...map.keys()].sort()).toEqual(['src/a.ts', 'src/b.ts']);
-      expect([...(map.get('src/a.ts') ?? [])].sort()).toEqual(['h1', 'h2']);
-      expect(map.get('src/b.ts')).toEqual(['h3']);
+      expect([...(map.get('src/a.ts') ?? [])].sort()).toEqual(ids);
+      expect(map.get('src/b.ts')).toEqual([chunkId(third)]);
     });
   });
 }

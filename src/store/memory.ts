@@ -43,12 +43,12 @@ export class InMemoryVectorStore implements VectorStore {
     }
   }
 
-  async listHashesByPath(): Promise<Map<string, string[]>> {
+  async listIdsByPath(): Promise<Map<string, string[]>> {
     const result = new Map<string, string[]>();
-    for (const { chunk } of this.items.values()) {
-      const hashes = result.get(chunk.path);
-      if (hashes) hashes.push(chunk.hash);
-      else result.set(chunk.path, [chunk.hash]);
+    for (const { id, chunk } of this.items.values()) {
+      const ids = result.get(chunk.path);
+      if (ids) ids.push(id);
+      else result.set(chunk.path, [id]);
     }
     return result;
   }

@@ -36,3 +36,9 @@ One entry per scheduled run, newest last.
 - Next: `repolens doctor`, incremental re-index by file hash, then `repolens search`. Docker Hub rate-limited the Qdrant pull in this run, so CI is the first real Qdrant run. The Release workflow permission question is still open under Needs Ardit.
 - Design decision: both stores are tested by one shared contract function, so the in-memory fake that most tests use is held to exactly the same behaviour as real Qdrant. Azure and Qdrant are called with plain fetch instead of SDKs, which keeps dependencies small and makes the request shapes easy to test with a fake fetch.
 - LinkedIn: repolens can now turn code chunks into vectors with either Azure OpenAI or a local model and store them in Qdrant, and the same tests run against a fake store and the real one.
+
+## 2026-10-16 M3 incremental index, search and doctor
+- Built: `repolens index` now embeds into Qdrant and re-embeds only changed files (deleted files are removed); `repolens search` with `--path`, `--language` and `-n`; `repolens doctor`; an end-to-end integration test against real Qdrant for CI; `.env.example`. The old language summary moved to `index --dry-run`. Only the opt-in Azure smoke test is left in M3.
+- Next: M4 MCP server (`repolens serve`, search_code, get_symbol, list_files, file_context). Docker Hub rate-limited the Qdrant pull again, so the real-Qdrant tests run first in CI. The Release workflow permission question is still open under Needs Ardit.
+- Design decision: the store now lists chunk ids per file instead of content hashes. An id is built from path, start line and hash, so a file whose code only moved to other lines is re-indexed and search results never show stale line numbers, while a plain hash comparison would have missed that.
+- LinkedIn: repolens can now be re-run on a repository and only re-embeds the files that changed, then answers plain-language searches from the command line.

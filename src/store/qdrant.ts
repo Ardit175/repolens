@@ -17,7 +17,7 @@ const MAX_ERROR_BODY = 300;
 type Payload = Chunk & { dir_prefixes: string[] };
 
 interface ScrollResult {
-  points: { payload?: { path?: string; hash?: string } }[];
+  points: { id?: string | number; payload?: { path?: string } }[];
   next_page_offset?: string | number | null;
 }
 
@@ -74,23 +74,23 @@ export class QdrantVectorStore implements VectorStore {
     });
   }
 
-  async listHashesByPath(): Promise<Map<string, string[]>> {
+  async listIdsByPath(): Promise<Map<string, string[]>> {
     const result = new Map<string, string[]>();
     let offset: string | number | null | undefined;
     do {
       const response = await this.send('POST', '/points/scroll', {
         limit: SCROLL_PAGE_SIZE,
-        with_payload: ['path', 'hash'],
+        with_payload: ['path'],
         with_vector: false,
         ...(offset !== undefined && offset !== null ? { offset } : {}),
       });
       const body = (await response!.json()) as { result: ScrollResult };
       for (const point of body.result.points) {
-        const { path, hash } = point.payload ?? {};
-        if (path === undefined || hash === undefined) continue;
-        const hashes = result.get(path);
-        if (hashes) hashes.push(hash);
-        else result.set(path, [hash]);
+        const path = point.payload?.path;
+        if (path === undefined || point.id === undefined) continue;
+        const ids = result.get(path);
+        if (ids) ids.push(String(point.id));
+        else result.set(path, [String(point.id)]);
       }
       offset = body.result.next_page_offset;
     } while (offset !== undefined && offset !== null);
