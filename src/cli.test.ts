@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { buildProgram, main } from './cli.js';
+import { buildProgram, main, type Deps } from './cli.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
@@ -136,12 +136,14 @@ describe('repolens program', () => {
 });
 
 describe('repolens index, search and doctor with a store', () => {
+  const served: string[] = [];
+  const serve = async (_runtime: Runtime, version: string) => void served.push(version);
   const memory = () => {
     const store = new InMemoryVectorStore();
     const embeddings = new FakeEmbeddingProvider();
-    return { store, embeddings, deps: { createRuntime: () => ({ store, embeddings }) } };
+    return { store, embeddings, deps: { createRuntime: () => ({ store, embeddings }), serve } };
   };
-  const runWith = async (deps: { createRuntime: () => Runtime }, ...args: string[]) => {
+  const runWith = async (deps: Deps, ...args: string[]) => {
     await buildProgram(io, deps).parseAsync(['node', 'repolens', ...args]);
   };
 
@@ -193,6 +195,24 @@ describe('repolens index, search and doctor with a store', () => {
     err = '';
     await run('search', 'x', '-n', '0');
     expect(err).toContain('must be a positive integer');
+  });
+
+  it('serve starts the MCP server with the runtime and package version', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'serve');
+    expect(served).toEqual([expect.stringMatching(/^\d+\.\d+\.\d+/)]);
+  });
+
+  it('serve reports a missing Qdrant configuration', async () => {
+    const failing = {
+      createRuntime: () => {
+        throw new Error('QDRANT_URL is not set.');
+      },
+      serve,
+    };
+    await runWith(failing, 'serve');
+    expect(err).toContain('QDRANT_URL is not set.');
+    expect(process.exitCode).toBe(1);
   });
 
   it('doctor exits 1 and prints the failing check', async () => {
