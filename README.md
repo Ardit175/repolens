@@ -29,6 +29,39 @@ npm run dev -- search "where do we open the database?" --language typescript --p
 - `index` re-embeds only files whose chunks changed and removes files that were deleted. `--dry-run` just summarises files by language without Qdrant or embeddings.
 - Embeddings use Azure OpenAI when `AZURE_OPENAI_*` is set, otherwise a local model that needs no key (the first run downloads it). Force one with `REPOLENS_EMBEDDINGS=azure|local`.
 
+## Use with an MCP client
+
+`repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`.
+
+| Tool           | What it does                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| `search_code`  | Semantic search; arguments `query`, optional `limit` (1-20), `path`, `language`                      |
+| `get_symbol`   | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path` |
+| `list_files`   | Indexed files, optionally under a `path` prefix, with a `limit`                                      |
+| `file_context` | One file as an outline of its symbols followed by their code                                         |
+
+Claude Code:
+
+```bash
+claude mcp add repolens --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/repolens serve
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "repolens": {
+      "command": "npx",
+      "args": ["-y", "@ardit175/repolens", "serve"],
+      "env": { "QDRANT_URL": "http://localhost:6333" }
+    }
+  }
+}
+```
+
+The package is not on npm yet (see M7), so until then build it (`npm run build`) and use `"command": "node", "args": ["/path/to/repolens/dist/cli.js", "serve"]`. The server writes only protocol messages to stdout; errors go to stderr.
+
 ## Status
 
-M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. The MCP server is next.
+M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the four MCP tools. The symbol graph is next.

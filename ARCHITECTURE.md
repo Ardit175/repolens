@@ -13,8 +13,8 @@ repolens is a codebase indexing system designed to prepare source code for LLM c
 - **indexer**: `indexRepository` walks, chunks and embeds a directory into a store. A file is re-embedded only when its set of chunk ids (path, start line, content hash) differs from the stored set; deleted files are removed. Embedding happens before the old chunks are deleted, so a failed run leaves the previous index intact
 - **search**: `searchIndex` embeds a query and asks the store for the nearest chunks (path and language filters); `formatHits` renders them for the terminal
 - **doctor / runtime**: `runDoctor` checks Node, Qdrant and the embedding config; `createRuntime` builds the Qdrant store and embedding provider from environment variables
-- **mcp**: MCP server that exposes search and navigation to LLMs (M3)
-- **graph**: Symbol graph for fast code navigation (M3)
+- **mcp**: `createServer` registers four read-only tools on `@modelcontextprotocol/sdk` (`search_code`, `get_symbol`, `list_files`, `file_context`) with zod input schemas. The tool logic lives in `tools.ts` as plain functions over a `Runtime`; `server.ts` only validates input and turns failures into MCP error results. `repolens serve` connects it to stdio. Tools read chunks through `VectorStore.findChunks` (exact path and/or name), `listIdsByPath` and `search`
+- **graph**: Symbol graph for fast code navigation (M5)
 
 ## Data Flow
 

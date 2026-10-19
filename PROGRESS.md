@@ -42,3 +42,9 @@ One entry per scheduled run, newest last.
 - Next: M4 MCP server (`repolens serve`, search_code, get_symbol, list_files, file_context). Docker Hub rate-limited the Qdrant pull again, so the real-Qdrant tests run first in CI. The Release workflow permission question is still open under Needs Ardit.
 - Design decision: the store now lists chunk ids per file instead of content hashes. An id is built from path, start line and hash, so a file whose code only moved to other lines is re-indexed and search results never show stale line numbers, while a plain hash comparison would have missed that.
 - LinkedIn: repolens can now be re-run on a repository and only re-embeds the files that changed, then answers plain-language searches from the command line.
+
+## 2026-10-19 M4 MCP server
+- Built: `repolens serve` on the MCP SDK with `search_code`, `get_symbol`, `list_files` and `file_context`; `VectorStore.findChunks` (in-memory and Qdrant); contract tests through an in-process client and through a real stdio process; README setup for Claude Code and Claude Desktop. M4 is complete.
+- Next: M5 symbol graph (imports and call references for TS/JS, Python and C#). The Release workflow permission question is still open under Needs Ardit. The Azure smoke test still needs a run with the key.
+- Design decision: the tool logic is plain functions that take a store and an embedder and return text, and the MCP server file only validates input and wraps results. That keeps most tests free of any protocol code, and one small test set talks to the server through a real client to prove the wiring. A missing symbol returns an error result instead of throwing, so the model reads the message and can try search instead.
+- LinkedIn: repolens now runs as an MCP server, so an AI assistant can search a codebase by meaning and pull up a function or file by name.
