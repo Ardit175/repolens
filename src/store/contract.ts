@@ -121,5 +121,22 @@ export function runVectorStoreContract(name: string, makeStore: () => Promise<Ve
       expect([...(map.get('src/a.ts') ?? [])].sort()).toEqual(ids);
       expect(map.get('src/b.ts')).toEqual([chunkId(third)]);
     });
+
+    it('finds chunks by path and by name, ordered by path then line', async () => {
+      await store.upsert([
+        stored(makeChunk('src/b.ts', { name: 'run', startLine: 20 }), [1, 0, 0]),
+        stored(makeChunk('src/a.ts', { name: 'run', startLine: 30 }), [0, 1, 0]),
+        stored(makeChunk('src/a.ts', { name: 'stop', startLine: 5 }), [0, 0, 1]),
+      ]);
+      const inFile = await store.findChunks({ path: 'src/a.ts' });
+      expect(inFile.map((c) => c.name)).toEqual(['stop', 'run']);
+      const byName = await store.findChunks({ name: 'run' });
+      expect(byName.map((c) => c.path)).toEqual(['src/a.ts', 'src/b.ts']);
+      const both = await store.findChunks({ name: 'run', path: 'src/b.ts' });
+      expect(both).toHaveLength(1);
+      expect(both[0]?.startLine).toBe(20);
+      expect(await store.findChunks({ name: 'missing' })).toEqual([]);
+      expect(await store.findChunks({ limit: 2 })).toHaveLength(2);
+    });
   });
 }

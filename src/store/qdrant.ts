@@ -1,5 +1,6 @@
 import type { Chunk } from '../chunker/types.js';
-import type { SearchFilter, SearchHit, StoredChunk, VectorStore } from './types.js';
+import { DEFAULT_FIND_LIMIT, sortChunks } from './order.js';
+import type { ChunkQuery, SearchFilter, SearchHit, StoredChunk, VectorStore } from './types.js';
 
 export interface QdrantConfig {
   url: string;
@@ -17,7 +18,7 @@ const MAX_ERROR_BODY = 300;
 type Payload = Chunk & { dir_prefixes: string[] };
 
 interface ScrollResult {
-  points: { id?: string | number; payload?: { path?: string } }[];
+  points: { id?: string | number; payload?: Partial<Payload> }[];
   next_page_offset?: string | number | null;
 }
 
@@ -117,6 +118,32 @@ export class QdrantVectorStore implements VectorStore {
       delete chunk.dir_prefixes;
       return { chunk: chunk as Chunk, score };
     });
+  }
+
+  async findChunks(query: ChunkQuery): Promise<Chunk[]> {
+    const must: object[] = [];
+    if (query.path !== undefined) must.push({ key: 'path', match: { value: query.path } });
+    if (query.name !== undefined) must.push({ key: 'name', match: { value: query.name } });
+    const limit = query.limit ?? DEFAULT_FIND_LIMIT;
+    const chunks: Chunk[] = [];
+    let offset: string | number | null | undefined;
+    do {
+      const response = await this.send('POST', '/points/scroll', {
+        limit: SCROLL_PAGE_SIZE,
+        with_payload: true,
+        with_vector: false,
+        ...(must.length > 0 ? { filter: { must } } : {}),
+        ...(offset !== undefined && offset !== null ? { offset } : {}),
+      });
+      const body = (await response!.json()) as { result: ScrollResult };
+      for (const point of body.result.points) {
+        const chunk: Partial<Payload> = { ...point.payload };
+        delete chunk.dir_prefixes;
+        chunks.push(chunk as Chunk);
+      }
+      offset = body.result.next_page_offset;
+    } while (offset !== undefined && offset !== null);
+    return sortChunks(chunks).slice(0, limit);
   }
 
   async count(): Promise<number> {
