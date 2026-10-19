@@ -1,4 +1,6 @@
-import type { SearchFilter, SearchHit, StoredChunk, VectorStore } from './types.js';
+import type { Chunk } from '../chunker/types.js';
+import { DEFAULT_FIND_LIMIT, sortChunks } from './order.js';
+import type { ChunkQuery, SearchFilter, SearchHit, StoredChunk, VectorStore } from './types.js';
 
 function cosine(a: number[], b: number[]): number {
   let dot = 0;
@@ -63,6 +65,16 @@ export class InMemoryVectorStore implements VectorStore {
       hits.push({ chunk, score: cosine(vector, item.vector) });
     }
     return hits.sort((a, b) => b.score - a.score).slice(0, Math.max(0, limit));
+  }
+
+  async findChunks(query: ChunkQuery): Promise<Chunk[]> {
+    const matches: Chunk[] = [];
+    for (const { chunk } of this.items.values()) {
+      if (query.path !== undefined && chunk.path !== query.path) continue;
+      if (query.name !== undefined && chunk.name !== query.name) continue;
+      matches.push(chunk);
+    }
+    return sortChunks(matches).slice(0, query.limit ?? DEFAULT_FIND_LIMIT);
   }
 
   async count(): Promise<number> {

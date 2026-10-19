@@ -24,6 +24,8 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Chunk shape (2026-10-09):** a class chunk holds the leading comment, header and fields up to the first method; each method is its own chunk with `parent` set. Nothing is embedded twice. Nested functions stay inside their enclosing chunk.
 - **Nested types (2026-10-12):** in C#, a nested type is its own chunk whose `parent` is the outer type; methods take the nearest type as parent. Python only chunks direct methods of top-level classes.
 - **Local embeddings (2026-10-14):** `@huggingface/transformers` (transformers.js) runs the local fallback model `Xenova/all-MiniLM-L6-v2` (384 dimensions) with no API key. Azure OpenAI and Qdrant are called through plain `fetch`, so no SDK or client library is added for them.
+- **MCP server (2026-10-19):** `@modelcontextprotocol/sdk` (the official SDK, the point of the project) and `zod` (the SDK's tool input schemas are zod; it was already a transitive dependency, now declared). Tools are read-only and return text; a missing symbol or file is an MCP error result, not a protocol error, so the model can read the message and retry. The stdout stream is reserved for protocol messages.
+- **Symbol lookup (2026-10-19):** `get_symbol` and `file_context` read from the vector store (`findChunks`, exact match on payload fields) rather than parsing files again, so they answer exactly what was indexed and work without the source checkout.
 
 ## Environment variables
 | Name | Used for | Required |

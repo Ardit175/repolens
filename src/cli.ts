@@ -5,6 +5,7 @@ import { Command, CommanderError, InvalidArgumentError } from 'commander';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
+import { serveStdio } from './mcp/server.js';
 import { createRuntime, type Runtime } from './runtime.js';
 import { formatHits, searchIndex } from './search.js';
 import { walkFiles } from './walker.js';
@@ -21,9 +22,10 @@ const defaultIo: Io = {
 
 export interface Deps {
   createRuntime: () => Runtime;
+  serve: (runtime: Runtime, version: string) => Promise<void>;
 }
 
-const defaultDeps: Deps = { createRuntime: () => createRuntime() };
+const defaultDeps: Deps = { createRuntime: () => createRuntime(), serve: serveStdio };
 
 const SHEBANG_PROBE_BYTES = 256;
 
@@ -159,6 +161,17 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
         };
         const hits = await searchIndex({ store, embeddings, query, limit: options.limit, filter });
         io.out(formatHits(hits));
+      } catch (error) {
+        fail(io, error);
+      }
+    });
+
+  program
+    .command('serve')
+    .description('Serve the index to an MCP client over stdio (search_code, get_symbol, ...)')
+    .action(async () => {
+      try {
+        await deps.serve(deps.createRuntime(), readVersion());
       } catch (error) {
         fail(io, error);
       }

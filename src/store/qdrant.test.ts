@@ -136,6 +136,44 @@ describe('QdrantVectorStore', () => {
     });
   });
 
+  describe('findChunks', () => {
+    it('scrolls with path and name filters, pages through results and strips dir_prefixes', async () => {
+      const first = makeChunk('src/b.ts', { name: 'run', startLine: 4 });
+      const second = makeChunk('src/a.ts', { name: 'run', startLine: 9 });
+      const { store, calls } = setup([
+        json({
+          result: {
+            points: [{ payload: { ...first, dir_prefixes: ['src/'] } }],
+            next_page_offset: 'page-2',
+          },
+        }),
+        json({
+          result: { points: [{ payload: { ...second, dir_prefixes: ['src/'] } }] },
+        }),
+      ]);
+      const chunks = await store.findChunks({ name: 'run', path: 'src/a.ts' });
+      expect(chunks).toEqual([second, first]);
+      expect(calls[0]!.body.filter).toEqual({
+        must: [
+          { key: 'path', match: { value: 'src/a.ts' } },
+          { key: 'name', match: { value: 'run' } },
+        ],
+      });
+      expect(calls[0]!.body).toMatchObject({ with_payload: true, with_vector: false });
+      expect(calls[1]!.body.offset).toBe('page-2');
+    });
+
+    it('sends no filter for an empty query and honours the limit', async () => {
+      const a = makeChunk('a.ts');
+      const b = makeChunk('b.ts');
+      const { store, calls } = setup([
+        json({ result: { points: [{ payload: a }, { payload: b }] } }),
+      ]);
+      expect(await store.findChunks({ limit: 1 })).toEqual([a]);
+      expect(calls[0]!.body.filter).toBeUndefined();
+    });
+  });
+
   describe('search', () => {
     it('sends the vector without a filter and strips dir_prefixes from hits', async () => {
       const chunk = makeChunk('src/a.ts');

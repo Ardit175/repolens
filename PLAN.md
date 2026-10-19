@@ -22,7 +22,7 @@ Answer: _(write here)_
 - [x] Pre-commit hooks
 - [x] Release workflow (release-please); cut v0.1.0 by merging its release PR when M1 is released
 - [x] docker-compose.yml for Qdrant
-- [ ] MCP contract test, fixture repos in test/fixtures, benchmark script (arrive with M2 to M4)
+- [ ] Benchmark script (arrives with M7). The MCP contract test exists in src/mcp/server.test.ts and src/mcp/stdio.test.ts; fixture repos exist in test/fixtures
 
 ### M1 Scaffold
 - [x] TypeScript project on Node 22 (ESM, strict), package `@ardit175/repolens` with a `repolens` bin, ESLint, Prettier, Vitest with coverage
@@ -49,9 +49,9 @@ Answer: _(write here)_
 - [ ] Opt-in Azure smoke test (`RUN_SMOKE=1`): the test file exists in src/embeddings/smoke.test.ts but has not been run against real Azure; tick it after a run with the key
 
 ### M4 MCP server
-- [ ] `repolens serve` (stdio) on @modelcontextprotocol/sdk
-- [ ] Tools `search_code`, `get_symbol`, `list_files` and `file_context`, with input schemas and tests through an in-process MCP client
-- [ ] Setup docs for Claude Desktop and Claude Code
+- [x] `repolens serve` (stdio) on @modelcontextprotocol/sdk
+- [x] Tools `search_code`, `get_symbol`, `list_files` and `file_context`, with input schemas and tests through an in-process MCP client (plus a real stdio process test)
+- [x] Setup docs for Claude Desktop and Claude Code (README)
 
 ### M5 Symbol graph
 - [ ] Extract imports and call references for TS/JS, Python and C#
