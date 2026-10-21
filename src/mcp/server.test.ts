@@ -24,11 +24,13 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the four tools with schemas', async () => {
+  it('identifies itself and advertises the six tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'call_graph',
       'file_context',
+      'find_references',
       'get_symbol',
       'list_files',
       'search_code',
@@ -68,6 +70,36 @@ describe('repolens MCP server', () => {
     expect(isError).toBe(false);
     expect(text).toContain('- openDatabase (function)');
     expect((await call('file_context', { path: 'nope.ts' })).isError).toBe(true);
+  });
+
+  it('find_references lists calls and imports, and answers normally when there are none', async () => {
+    const found = await call('find_references', { name: 'openDatabase' });
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('src/auth.ts:1  import from "./db.js"');
+    expect(found.text).toContain('src/auth.ts:3  call in AuthService.login');
+    expect(found.text).toContain('scripts/seed.py:2  call in seed_database');
+    const none = await call('find_references', { name: 'nothing' });
+    expect(none.isError).toBe(false);
+    expect(none.text).toContain('name only');
+  });
+
+  it('call_graph walks callers and callees and reports unknown symbols as errors', async () => {
+    const callers = await call('call_graph', { name: 'openDatabase', depth: 2 });
+    expect(callers.text).toContain('  login  src/auth.ts:3');
+    expect(callers.text).toContain('    logout  src/auth.ts:6');
+    const callees = await call('call_graph', { name: 'logout', direction: 'callees' });
+    expect(callees.text).toContain('  login  src/auth.ts:6\n    openDatabase  src/auth.ts:3');
+    const missing = await call('call_graph', { name: 'nothing', direction: 'callees' });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain('search_code');
+  });
+
+  it('rejects out-of-range call_graph depth', async () => {
+    const result = await client.callTool({
+      name: 'call_graph',
+      arguments: { name: 'x', depth: 9 },
+    });
+    expect(result.isError).toBe(true);
   });
 
   it('rejects invalid input before running the tool', async () => {

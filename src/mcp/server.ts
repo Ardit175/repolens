@@ -4,10 +4,14 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import type { Runtime } from '../runtime.js';
 import {
+  callGraph,
   fileContext,
+  findReferences,
   getSymbol,
   listFiles,
+  MAX_GRAPH_DEPTH,
   MAX_LIST_LIMIT,
+  MAX_REFERENCE_LIMIT,
   MAX_SEARCH_RESULTS,
   searchCode,
   ToolError,
@@ -78,6 +82,47 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => fileContext(runtime, input)),
+  );
+
+  server.registerTool(
+    'find_references',
+    {
+      description:
+        'Lists every import of and call to a name, with file, line and the calling symbol. Matches by name only, not by type.',
+      inputSchema: {
+        name: z.string().min(1).describe('Function, method or class name, e.g. "login"'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_REFERENCE_LIMIT)
+          .optional()
+          .describe('Maximum references, default 50'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => findReferences(runtime, input)),
+  );
+
+  server.registerTool(
+    'call_graph',
+    {
+      description:
+        'Shows who calls a function (callers) or what it calls (callees) as an indented tree. Matches by name only.',
+      inputSchema: {
+        name: z.string().min(1).describe('Function or method name, e.g. "login"'),
+        direction: z.enum(['callers', 'callees']).optional().describe('Default "callers"'),
+        depth: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_GRAPH_DEPTH)
+          .optional()
+          .describe('Levels, default 2'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => callGraph(runtime, input)),
   );
 
   return server;

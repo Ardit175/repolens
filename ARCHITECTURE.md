@@ -13,8 +13,8 @@ repolens is a codebase indexing system designed to prepare source code for LLM c
 - **indexer**: `indexRepository` walks, chunks and embeds a directory into a store. A file is re-embedded only when its set of chunk ids (path, start line, content hash) differs from the stored set; deleted files are removed. Embedding happens before the old chunks are deleted, so a failed run leaves the previous index intact
 - **search**: `searchIndex` embeds a query and asks the store for the nearest chunks (path and language filters); `formatHits` renders them for the terminal
 - **doctor / runtime**: `runDoctor` checks Node, Qdrant and the embedding config; `createRuntime` builds the Qdrant store and embedding provider from environment variables
-- **mcp**: `createServer` registers four read-only tools on `@modelcontextprotocol/sdk` (`search_code`, `get_symbol`, `list_files`, `file_context`) with zod input schemas. The tool logic lives in `tools.ts` as plain functions over a `Runtime`; `server.ts` only validates input and turns failures into MCP error results. `repolens serve` connects it to stdio. Tools read chunks through `VectorStore.findChunks` (exact path and/or name), `listIdsByPath` and `search`
-- **graph**: Symbol graph for fast code navigation (M5)
+- **mcp**: `createServer` registers six read-only tools on `@modelcontextprotocol/sdk` (`search_code`, `get_symbol`, `list_files`, `file_context`, `find_references`, `call_graph`) with zod input schemas. The tool logic lives in `tools.ts` as plain functions over a `Runtime`; `server.ts` only validates input and turns failures into MCP error results. `repolens serve` connects it to stdio. Tools read chunks through `VectorStore.findChunks` (exact path and/or name), `listIdsByPath` and `search`; the two graph tools read edges through `GraphStore.findEdges`
+- **graph**: `GraphStore` holds import and call edges (`GraphEdge`: path, kind, target name, optional module, enclosing symbol and line) extracted per file by tree-sitter adapters for TS/JS, Python and C#. `InMemoryGraphStore` and `QdrantGraphStore` share a contract test; `findEdges` does exact lookups by kind, target, from and path. Targets are names as written, not resolved, so every query is name-based
 
 ## Data Flow
 
@@ -26,6 +26,7 @@ graph LR
   Chunker[Chunker]
   Embeddings[Embeddings<br/>Azure OpenAI /<br/>transformers.js]
   Store[Vector Store<br/>Qdrant]
+  Graph[Graph Store<br/>import & call edges]
   MCP[MCP Server]
   LLM[LLM Queries]
 
@@ -33,7 +34,9 @@ graph LR
   Walker -->|Code files| Language
   Language -->|Files with language| Chunker
   Chunker -->|Code chunks| Embeddings
+  Walker -->|Source files| Graph
   Embeddings -->|Vectors| Store
   Store -->|Search & lookup| MCP
+  Graph -->|References & call graph| MCP
   MCP -->|Results| LLM
 ```

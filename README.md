@@ -33,12 +33,16 @@ npm run dev -- search "where do we open the database?" --language typescript --p
 
 `repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`.
 
-| Tool           | What it does                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------- |
-| `search_code`  | Semantic search; arguments `query`, optional `limit` (1-20), `path`, `language`                      |
-| `get_symbol`   | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path` |
-| `list_files`   | Indexed files, optionally under a `path` prefix, with a `limit`                                      |
-| `file_context` | One file as an outline of its symbols followed by their code                                         |
+| Tool              | What it does                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `search_code`     | Semantic search; arguments `query`, optional `limit` (1-20), `path`, `language`                                            |
+| `get_symbol`      | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path`                       |
+| `list_files`      | Indexed files, optionally under a `path` prefix, with a `limit`                                                            |
+| `file_context`    | One file as an outline of its symbols followed by their code                                                               |
+| `find_references` | Every import of and call to a name, with file, line and calling symbol; optional `limit` (1-200)                           |
+| `call_graph`      | Callers or callees of a function as an indented tree; `direction` (`callers` default, `callees`), `depth` (1-5, default 2) |
+
+`find_references` and `call_graph` match by name only. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together.
 
 Claude Code:
 
@@ -64,4 +68,4 @@ The package is not on npm yet (see M7), so until then build it (`npm run build`)
 
 ## Status
 
-M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the four MCP tools. The symbol graph is next.
+M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the MCP tools. M5 adds the symbol graph and the `find_references` and `call_graph` tools.
