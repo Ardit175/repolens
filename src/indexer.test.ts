@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { InMemoryGraphStore } from './graph/store.js';
 import { indexRepository } from './indexer.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
@@ -112,6 +113,65 @@ describe('indexRepository', () => {
     };
     await expect(index()).rejects.toThrow('rate limited');
     expect(await store.count()).toBe(1);
+  });
+});
+
+describe('indexRepository with a graph', () => {
+  let graph: InMemoryGraphStore;
+  const indexWithGraph = () => indexRepository({ root: dir, store, embeddings, graph });
+
+  beforeEach(() => {
+    graph = new InMemoryGraphStore();
+  });
+
+  it('reports 0 graph files when no graph is given', async () => {
+    write('a.ts', 'export function one() { return two(); }\n');
+    expect((await index()).graphFilesUpdated).toBe(0);
+  });
+
+  it('builds the graph on the first run, including files without edges', async () => {
+    write('a.ts', 'export function one() { return two(); }\n');
+    write('b.ts', 'export const x = 1;\n');
+    const stats = await indexWithGraph();
+    expect(stats.graphFilesUpdated).toBe(2);
+    expect([...(await graph.listHashes()).keys()].sort()).toEqual(['a.ts', 'b.ts']);
+    const calls = await graph.findEdges({ kind: 'call', target: 'two' });
+    expect(calls.map((e) => [e.path, e.from])).toEqual([['a.ts', 'one']]);
+  });
+
+  it('updates no graph files when nothing changed', async () => {
+    write('a.ts', 'export function one() { return two(); }\n');
+    await indexWithGraph();
+    expect((await indexWithGraph()).graphFilesUpdated).toBe(0);
+  });
+
+  it('updates exactly the file whose call changed', async () => {
+    write('a.ts', 'export function one() { return two(); }\n');
+    write('b.ts', 'export function three() { return four(); }\n');
+    await indexWithGraph();
+    write('a.ts', 'export function one() { return five(); }\n');
+    const stats = await indexWithGraph();
+    expect(stats.graphFilesUpdated).toBe(1);
+    expect(await graph.findEdges({ kind: 'call', target: 'two' })).toEqual([]);
+    expect(await graph.findEdges({ kind: 'call', target: 'five' })).toHaveLength(1);
+    expect(await graph.findEdges({ kind: 'call', target: 'four' })).toHaveLength(1);
+  });
+
+  it('removes the edges of deleted files', async () => {
+    write('a.ts', 'export function one() { return two(); }\n');
+    write('b.ts', 'export function three() { return four(); }\n');
+    await indexWithGraph();
+    unlinkSync(path.join(dir, 'b.ts'));
+    await indexWithGraph();
+    expect([...(await graph.listHashes()).keys()]).toEqual(['a.ts']);
+    expect(await graph.findEdges({ target: 'four' })).toEqual([]);
+  });
+
+  it('records files in languages without a graph extractor as having no edges', async () => {
+    write('notes.md', '# Notes\n');
+    write('data.txt', 'plain text\n');
+    expect((await indexWithGraph()).graphFilesUpdated).toBe(2);
+    expect(await graph.findEdges({})).toEqual([]);
   });
 });
 

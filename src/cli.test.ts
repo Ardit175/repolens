@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildProgram, main, type Deps } from './cli.js';
+import { InMemoryGraphStore } from './graph/store.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
@@ -141,23 +142,31 @@ describe('repolens index, search and doctor with a store', () => {
   const memory = () => {
     const store = new InMemoryVectorStore();
     const embeddings = new FakeEmbeddingProvider();
-    return { store, embeddings, deps: { createRuntime: () => ({ store, embeddings }), serve } };
+    const graph = new InMemoryGraphStore();
+    return {
+      store,
+      graph,
+      deps: { createRuntime: () => ({ store, graph, embeddings }), serve },
+    };
   };
   const runWith = async (deps: Deps, ...args: string[]) => {
     await buildProgram(io, deps).parseAsync(['node', 'repolens', ...args]);
   };
 
   it('indexes a directory and reports changed, unchanged and removed files', async () => {
-    const { deps, store } = memory();
+    const { deps, store, graph } = memory();
     write('a.ts', 'export function alpha() { return 1; }\n');
     await runWith(deps, 'index', dir);
     expect(out).toContain('Scanned 1 file');
     expect(out).toContain('Changed: 1 (1 chunks embedded)');
+    expect(out).toContain('Graph files updated: 1');
     expect(await store.count()).toBe(1);
+    expect(await graph.listHashes()).toHaveProperty('size', 1);
     out = '';
     await runWith(deps, 'index', dir);
     expect(out).toContain('Changed: 0 (0 chunks embedded)');
     expect(out).toContain('Unchanged: 1');
+    expect(out).toContain('Graph files updated: 0');
   });
 
   it('searches the index with filters and a limit', async () => {

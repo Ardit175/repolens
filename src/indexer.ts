@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { chunkFile, type Chunk } from './chunker/index.js';
 import type { EmbeddingProvider } from './embeddings/index.js';
+import { edgesHash, extractGraph } from './graph/index.js';
+import type { GraphStore } from './graph/types.js';
 import { detectLanguage } from './language.js';
 import { chunkId, type StoredChunk, type VectorStore } from './store/index.js';
 import { walkFiles, type WalkedFile } from './walker.js';
@@ -9,6 +11,8 @@ export interface IndexOptions {
   root: string;
   store: VectorStore;
   embeddings: EmbeddingProvider;
+  /** When set, the symbol graph is kept in step with the files, independent of the chunks. */
+  graph?: GraphStore;
   maxFileSize?: number;
   /** Called once per file that is re-chunked, for progress output. */
   onFile?: (path: string) => void;
@@ -24,6 +28,8 @@ export interface IndexStats {
   chunksEmbedded: number;
   /** Files that could not be read or are not valid UTF-8 text. */
   filesSkipped: number;
+  /** Files whose graph edges were rewritten because their edge set changed. 0 without a graph. */
+  graphFilesUpdated: number;
 }
 
 /** Reads a file as UTF-8 text, or returns undefined if it is not text. */
@@ -45,13 +51,18 @@ function sameIds(stored: string[] | undefined, current: string[]): boolean {
  * and files that disappeared are deleted.
  */
 export async function indexRepository(options: IndexOptions): Promise<IndexStats> {
-  const { root, store, embeddings, onFile } = options;
+  const { root, store, embeddings, graph, onFile } = options;
   const files = await walkFiles(
     root,
     options.maxFileSize === undefined ? {} : { maxFileSize: options.maxFileSize },
   );
   await store.ensureCollection(embeddings.dimensions);
   const indexed = await store.listIdsByPath();
+  let graphHashes = new Map<string, string>();
+  if (graph) {
+    await graph.ensure();
+    graphHashes = await graph.listHashes();
+  }
 
   const stats: IndexStats = {
     filesScanned: files.length,
@@ -60,6 +71,7 @@ export async function indexRepository(options: IndexOptions): Promise<IndexStats
     filesRemoved: 0,
     chunksEmbedded: 0,
     filesSkipped: 0,
+    graphFilesUpdated: 0,
   };
 
   const seen = new Set<string>();
@@ -75,6 +87,10 @@ export async function indexRepository(options: IndexOptions): Promise<IndexStats
       continue;
     }
     seen.add(file.path);
+
+    if (graph && (await updateGraph(graph, graphHashes, file.path, source))) {
+      stats.graphFilesUpdated++;
+    }
 
     const chunks = await chunkFile(file.path, detectLanguage(file.path), source);
     const items = chunks.map((chunk) => ({ id: chunkId(chunk), chunk }));
@@ -105,7 +121,27 @@ export async function indexRepository(options: IndexOptions): Promise<IndexStats
     await store.deleteByPath(stalePath);
     stats.filesRemoved++;
   }
+  if (graph) {
+    for (const stalePath of graphHashes.keys()) {
+      if (!seen.has(stalePath)) await graph.deleteByPath(stalePath);
+    }
+  }
   return stats;
+}
+
+/** Rewrites a file's edges when their hash differs from the stored one. Returns true if it did. */
+async function updateGraph(
+  graph: GraphStore,
+  hashes: Map<string, string>,
+  path: string,
+  source: string,
+): Promise<boolean> {
+  const language = detectLanguage(path);
+  const edges = language ? await extractGraph(path, language, source) : [];
+  const hash = edgesHash(edges);
+  if (hashes.get(path) === hash) return false;
+  await graph.replaceFile(path, hash, edges);
+  return true;
 }
 
 function toStored(items: { id: string; chunk: Chunk }[], vectors: number[][]): StoredChunk[] {

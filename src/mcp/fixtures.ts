@@ -1,4 +1,5 @@
 import { chunkFile } from '../chunker/index.js';
+import { InMemoryGraphStore } from '../graph/store.js';
 import type { Runtime } from '../runtime.js';
 import { chunkId, InMemoryVectorStore } from '../store/index.js';
 import { FakeEmbeddingProvider } from '../testing.js';
@@ -35,5 +36,5 @@ export async function seededRuntime(): Promise<Runtime> {
       chunks.map((chunk, i) => ({ id: chunkId(chunk), chunk, vector: vectors[i]! })),
     );
   }
-  return { store, embeddings };
+  return { store, graph: new InMemoryGraphStore(), embeddings };
 }

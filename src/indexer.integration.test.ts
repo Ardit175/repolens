@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { QdrantGraphStore } from './graph/store.js';
 import { indexRepository } from './indexer.js';
 import { searchIndex } from './search.js';
 import { QdrantVectorStore } from './store/index.js';
@@ -13,6 +14,7 @@ const apiKey = process.env.QDRANT_API_KEY;
 
 describe.skipIf(!url)('index and search against real Qdrant', () => {
   const collection = `repolens-test-${randomUUID()}`;
+  const graphCollection = `${collection}-graph`;
   let dir: string;
 
   beforeAll(() => {
@@ -27,21 +29,35 @@ describe.skipIf(!url)('index and search against real Qdrant', () => {
 
   afterAll(async () => {
     rmSync(dir, { recursive: true, force: true });
-    await fetch(`${url}/collections/${collection}`, {
-      method: 'DELETE',
-      headers: apiKey ? { 'api-key': apiKey } : {},
-    });
+    for (const name of [collection, graphCollection]) {
+      await fetch(`${url}/collections/${name}`, {
+        method: 'DELETE',
+        headers: apiKey ? { 'api-key': apiKey } : {},
+      });
+    }
   });
 
   it('indexes, skips unchanged files on the second run and finds the right chunk', async () => {
     const store = new QdrantVectorStore({ url: url!, collection, ...(apiKey ? { apiKey } : {}) });
     const embeddings = new FakeEmbeddingProvider();
 
-    const first = await indexRepository({ root: dir, store, embeddings });
-    expect(first).toMatchObject({ filesChanged: 2, chunksEmbedded: 2 });
+    const graph = new QdrantGraphStore({
+      url: url!,
+      collection: graphCollection,
+      ...(apiKey ? { apiKey } : {}),
+    });
 
-    const second = await indexRepository({ root: dir, store, embeddings });
-    expect(second).toMatchObject({ filesChanged: 0, filesUnchanged: 2, chunksEmbedded: 0 });
+    const first = await indexRepository({ root: dir, store, embeddings, graph });
+    expect(first).toMatchObject({ filesChanged: 2, chunksEmbedded: 2, graphFilesUpdated: 2 });
+    expect((await graph.listHashes()).size).toBe(2);
+
+    const second = await indexRepository({ root: dir, store, embeddings, graph });
+    expect(second).toMatchObject({
+      filesChanged: 0,
+      filesUnchanged: 2,
+      chunksEmbedded: 0,
+      graphFilesUpdated: 0,
+    });
 
     const hits = await searchIndex({ store, embeddings, query: 'open database connect', limit: 1 });
     expect(hits[0]?.chunk.path).toBe('src/db.ts');
