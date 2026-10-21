@@ -54,9 +54,9 @@ Answer: _(write here)_
 - [x] Setup docs for Claude Desktop and Claude Code (README)
 
 ### M5 Symbol graph
-- [ ] Extract imports and call references for TS/JS, Python and C#
-- [ ] Store the graph (nodes and edges), updated incrementally with the index
-- [ ] MCP tools `find_references` and `call_graph` (with depth limit)
+- [x] Extract imports and call references for TS/JS, Python and C#
+- [x] Store the graph (edges, in a second Qdrant collection), updated incrementally with the index (the real-Qdrant graph test runs first in CI)
+- [x] MCP tools `find_references` and `call_graph` (with depth limit)
 
 ### M6 Map
 - [ ] `repolens map` writes a self-contained interactive HTML graph of modules and dependencies (filter, search and zoom)

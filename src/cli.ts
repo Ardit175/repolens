@@ -95,6 +95,7 @@ function formatIndexStats(stats: IndexStats): string {
     `Changed: ${stats.filesChanged} (${stats.chunksEmbedded} chunks embedded)`,
     `Unchanged: ${stats.filesUnchanged}`,
     `Removed: ${stats.filesRemoved}`,
+    `Graph files updated: ${stats.graphFilesUpdated}`,
   ];
   if (stats.filesSkipped > 0) lines.push(`Skipped (unreadable or binary): ${stats.filesSkipped}`);
   return lines.join('\n') + '\n';
@@ -132,10 +133,11 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
           await runDryRun(target, options.maxFileSize, io);
           return;
         }
-        const { store, embeddings } = deps.createRuntime();
+        const { store, graph, embeddings } = deps.createRuntime();
         const stats = await indexRepository({
           root: target,
           store,
+          graph,
           embeddings,
           ...(options.maxFileSize === undefined ? {} : { maxFileSize: options.maxFileSize }),
         });

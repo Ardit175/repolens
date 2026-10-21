@@ -1,7 +1,18 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Runtime } from '../runtime.js';
 import { seededRuntime } from './fixtures.js';
-import { fileContext, getSymbol, listFiles, searchCode, ToolError } from './tools.js';
+import { InMemoryGraphStore } from '../graph/store.js';
+import type { GraphEdge } from '../graph/types.js';
+import {
+  callGraph,
+  fileContext,
+  findReferences,
+  getSymbol,
+  listFiles,
+  MAX_GRAPH_LEVEL_NODES,
+  searchCode,
+  ToolError,
+} from './tools.js';
 
 let runtime: Runtime;
 beforeAll(async () => {
@@ -85,5 +96,102 @@ describe('fileContext', () => {
 
   it('rejects a path that is not indexed', async () => {
     await expect(fileContext(runtime, { path: 'src/none.ts' })).rejects.toThrow('list_files');
+  });
+});
+
+function call(target: string, from: string | undefined, line: number, path = 'a.ts'): GraphEdge {
+  return {
+    path,
+    language: 'typescript',
+    kind: 'call',
+    target,
+    ...(from === undefined ? {} : { from }),
+    line,
+  };
+}
+
+async function withEdges(edges: GraphEdge[]): Promise<Runtime> {
+  const graph = new InMemoryGraphStore();
+  await graph.replaceFile('a.ts', 'h', edges);
+  return { ...runtime, graph };
+}
+
+describe('findReferences', () => {
+  it('lists imports and calls with their locations', async () => {
+    const text = await findReferences(runtime, { name: 'openDatabase' });
+    expect(text).toContain('References to "openDatabase" (3)');
+    expect(text).toContain('src/auth.ts:1  import from "./db.js"');
+    expect(text).toContain('src/auth.ts:3  call in AuthService.login');
+  });
+
+  it('describes top-level calls', async () => {
+    const rt = await withEdges([call('x', undefined, 4)]);
+    expect(await findReferences(rt, { name: 'x' })).toContain('a.ts:4  call in top level');
+  });
+
+  it('answers normally and states the name-only limit when nothing is found', async () => {
+    const text = await findReferences(runtime, { name: 'ghost' });
+    expect(text).toContain('No references to "ghost" found');
+    expect(text).toContain('name only');
+  });
+
+  it('truncates at the limit and rejects a blank name', async () => {
+    const text = await findReferences(runtime, { name: 'openDatabase', limit: 1 });
+    expect(text).toContain('(first 1)');
+    expect(text).toContain('... more');
+    await expect(findReferences(runtime, { name: ' ' })).rejects.toThrow('must not be empty');
+  });
+});
+
+describe('callGraph', () => {
+  it('renders callers as an indented tree up to the depth', async () => {
+    expect(await callGraph(runtime, { name: 'openDatabase' })).toBe(
+      [
+        'openDatabase',
+        '  seed_database  scripts/seed.py:2',
+        '  login  src/auth.ts:3',
+        '    logout  src/auth.ts:6',
+      ].join('\n'),
+    );
+  });
+
+  it('enforces the depth limit', async () => {
+    const text = await callGraph(runtime, { name: 'openDatabase', depth: 1 });
+    expect(text).not.toContain('logout');
+  });
+
+  it('follows callees, scoped to the symbol file', async () => {
+    expect(await callGraph(runtime, { name: 'login', direction: 'callees' })).toBe(
+      'login\n  openDatabase  src/auth.ts:3',
+    );
+  });
+
+  it('marks cycles as seen instead of looping', async () => {
+    const rt = await withEdges([call('b', 'a', 1), call('a', 'b', 2)]);
+    expect(await callGraph(rt, { name: 'a', depth: 5 })).toBe(
+      ['a', '  b  a.ts:2', '    a  a.ts:1 (seen)'].join('\n'),
+    );
+  });
+
+  it('caps each level and reports the remainder', async () => {
+    const edges = Array.from({ length: MAX_GRAPH_LEVEL_NODES + 3 }, (_, i) =>
+      call('target', `caller${String(i).padStart(2, '0')}`, i + 1),
+    );
+    const text = await callGraph(await withEdges(edges), { name: 'target', depth: 1 });
+    expect(text.split('\n')).toHaveLength(1 + MAX_GRAPH_LEVEL_NODES + 1);
+    expect(text).toContain('  ... 3 more');
+  });
+
+  it('says so when there are no callers and ignores calls without an enclosing symbol', async () => {
+    const rt = await withEdges([call('x', undefined, 1)]);
+    const text = await callGraph(rt, { name: 'x' });
+    expect(text).toContain('(no callers found)');
+  });
+
+  it('errors for callees of an unknown symbol and for a blank name', async () => {
+    await expect(callGraph(runtime, { name: 'ghost', direction: 'callees' })).rejects.toThrow(
+      'search_code',
+    );
+    await expect(callGraph(runtime, { name: '' })).rejects.toThrow('must not be empty');
   });
 });
