@@ -54,3 +54,9 @@ One entry per scheduled run, newest last.
 - Next: M6 `repolens map` (interactive HTML graph). The Release workflow permission question is still open under Needs Ardit, and the Azure smoke test still needs a run with the key. The real-Qdrant graph test runs first in CI.
 - Design decision: graph edges store the name written at the call site and are matched by name, with no type resolution. Real resolution needs a language server per language, while name matching is cheap, works on all three languages and is honest about its limits, so the tool output says matches are by name only.
 - LinkedIn: repolens can now answer who calls a function and what a function calls, so an AI assistant can follow code across files instead of only searching it.
+
+## 2026-10-23 M6 map
+- Built: `repolens map` writes a self-contained interactive HTML graph of files and their imports (zoom, pan, search, language filter, click a file to see what it imports and what imports it); `buildMapData` resolves imports to indexed files; tested in a real browser with 60 and 1500 nodes. M6 is complete.
+- Next: M7 polish (docs folder, benchmark on a real repo, demo GIF, npm publish setup, which needs an NPM_TOKEN). The Release workflow permission question is still open under Needs Ardit, and the Azure smoke test still needs a run with the key.
+- Design decision: imports are linked to files by matching paths against the indexed file list only, never by touching disk or guessing at packages. That keeps the map identical whether or not the source checkout is present, and imports it cannot place are counted and shown as unresolved instead of silently drawn wrong.
+- LinkedIn: repolens can now draw your codebase as an interactive map of which files import which, in a single HTML file you can open anywhere.

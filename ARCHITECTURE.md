@@ -15,6 +15,7 @@ repolens is a codebase indexing system designed to prepare source code for LLM c
 - **doctor / runtime**: `runDoctor` checks Node, Qdrant and the embedding config; `createRuntime` builds the Qdrant store and embedding provider from environment variables
 - **mcp**: `createServer` registers six read-only tools on `@modelcontextprotocol/sdk` (`search_code`, `get_symbol`, `list_files`, `file_context`, `find_references`, `call_graph`) with zod input schemas. The tool logic lives in `tools.ts` as plain functions over a `Runtime`; `server.ts` only validates input and turns failures into MCP error results. `repolens serve` connects it to stdio. Tools read chunks through `VectorStore.findChunks` (exact path and/or name), `listIdsByPath` and `search`; the two graph tools read edges through `GraphStore.findEdges`
 - **graph**: `GraphStore` holds import and call edges (`GraphEdge`: path, kind, target name, optional module, enclosing symbol and line) extracted per file by tree-sitter adapters for TS/JS, Python and C#. `InMemoryGraphStore` and `QdrantGraphStore` share a contract test; `findEdges` does exact lookups by kind, target, from and path. Targets are names as written, not resolved, so every query is name-based
+- **map**: `buildMapData` turns the index into file nodes and weighted import links. Relative TS/JS specifiers and Python modules are resolved to indexed paths by path alone (no disk access); everything else is counted as unresolved. `renderMapHtml` renders that data as one self-contained HTML page with an inline force-directed layout, zoom, search and language filter. `repolens map` writes it to a file
 
 ## Data Flow
 
@@ -38,5 +39,7 @@ graph LR
   Embeddings -->|Vectors| Store
   Store -->|Search & lookup| MCP
   Graph -->|References & call graph| MCP
+  Graph -->|Import links| Map[Map HTML]
+  Store -->|Indexed files| Map
   MCP -->|Results| LLM
 ```

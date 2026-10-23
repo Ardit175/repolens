@@ -27,6 +27,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **MCP server (2026-10-19):** `@modelcontextprotocol/sdk` (the official SDK, the point of the project) and `zod` (the SDK's tool input schemas are zod; it was already a transitive dependency, now declared). Tools are read-only and return text; a missing symbol or file is an MCP error result, not a protocol error, so the model can read the message and retry. The stdout stream is reserved for protocol messages.
 - **Symbol lookup (2026-10-19):** `get_symbol` and `file_context` read from the vector store (`findChunks`, exact match on payload fields) rather than parsing files again, so they answer exactly what was indexed and work without the source checkout.
 - **Symbol graph (2026-10-21):** edges (imports and calls) live in a second Qdrant collection `repolens_graph` (1-dimension dummy vector, payload filters), so `serve` needs no source checkout and no new dependency. Each file stores a hash of its edge set and is rewritten only when it changes. Targets are matched by name only, with no type or module resolution; the tools say so in their output.
+- **Map (2026-10-23):** `repolens map` has no new dependency: the layout is a small built-in force simulation in inline JS, so the HTML works offline. Files are linked by resolving import specifiers against indexed paths only (relative TS/JS, Python dotted and relative modules); packages and C# namespaces are counted as unresolved rather than guessed.
 
 ## Environment variables
 | Name | Used for | Required |
