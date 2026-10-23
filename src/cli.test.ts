@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -204,6 +204,56 @@ describe('repolens index, search and doctor with a store', () => {
     err = '';
     await run('search', 'x', '-n', '0');
     expect(err).toContain('must be a positive integer');
+  });
+
+  it('map writes a self-contained HTML file linking files by their imports', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    const target = path.join(dir, 'out', 'map.html');
+    await runWith(deps, 'map', '-o', target);
+    expect(err).toBe('');
+    expect(out).toContain('2 files, 1 links');
+    const html = readFileSync(target, 'utf8');
+    expect(html).toContain('src/a.ts');
+    expect(html).toContain('src/b.ts');
+  });
+
+  it('map --path limits the map to a directory', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    write('lib/b.ts', 'export function b() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    const target = path.join(dir, 'map.html');
+    await runWith(deps, 'map', '-o', target, '--path', 'lib/');
+    expect(out).toContain('1 files, 0 links');
+    const html = readFileSync(target, 'utf8');
+    expect(html).toContain('lib/b.ts');
+    expect(html).not.toContain('src/a.ts');
+  });
+
+  it('map explains an empty index and writes nothing', async () => {
+    const { deps } = memory();
+    const target = path.join(dir, 'map.html');
+    await runWith(deps, 'map', '-o', target);
+    expect(err).toContain('The index has no files to map');
+    expect(process.exitCode).toBe(1);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  it('map reports a missing Qdrant configuration', async () => {
+    const failing = {
+      createRuntime: () => {
+        throw new Error('QDRANT_URL is not set.');
+      },
+      serve,
+    };
+    await runWith(failing, 'map');
+    expect(err).toContain('QDRANT_URL is not set.');
+    expect(process.exitCode).toBe(1);
   });
 
   it('serve starts the MCP server with the runtime and package version', async () => {

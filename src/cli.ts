@@ -1,10 +1,21 @@
 #!/usr/bin/env node
-import { closeSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs';
+import {
+  closeSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
+import { buildMapData } from './map/build.js';
+import { renderMapHtml } from './map/html.js';
 import { serveStdio } from './mcp/server.js';
 import { createRuntime, type Runtime } from './runtime.js';
 import { formatHits, searchIndex } from './search.js';
@@ -174,6 +185,35 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
     .action(async () => {
       try {
         await deps.serve(deps.createRuntime(), readVersion());
+      } catch (error) {
+        fail(io, error);
+      }
+    });
+
+  program
+    .command('map')
+    .description('Write a self-contained interactive HTML map of file dependencies')
+    .option('-o, --output <file>', 'where to write the HTML file', 'repolens-map.html')
+    .option('--path <prefix>', 'only files under this directory, e.g. src/')
+    .action(async (options: { output: string; path?: string }) => {
+      try {
+        const { store, graph } = deps.createRuntime();
+        const data = await buildMapData(store, graph, {
+          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+        });
+        if (data.nodes.length === 0) {
+          throw new Error('The index has no files to map. Run `repolens index <path>` first.');
+        }
+        const html = renderMapHtml(data, {
+          title: options.path ? `repolens map: ${options.path}` : 'repolens map',
+          generatedAt: new Date().toISOString(),
+        });
+        const target = path.resolve(options.output);
+        mkdirSync(path.dirname(target), { recursive: true });
+        writeFileSync(target, html);
+        io.out(
+          `Wrote ${target}\n${data.nodes.length} files, ${data.links.length} links, ${data.unresolvedImports} unresolved imports\n`,
+        );
       } catch (error) {
         fail(io, error);
       }

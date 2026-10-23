@@ -59,7 +59,7 @@ Answer: _(write here)_
 - [x] MCP tools `find_references` and `call_graph` (with depth limit)
 
 ### M6 Map
-- [ ] `repolens map` writes a self-contained interactive HTML graph of modules and dependencies (filter, search and zoom)
+- [x] `repolens map` writes a self-contained interactive HTML graph of modules and dependencies (filter, search and zoom)
 
 ### M7 Polish
 - [ ] README demo GIF
