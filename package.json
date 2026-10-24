@@ -1,6 +1,6 @@
 {
   "name": "@ardit175/repolens",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Index a codebase into embeddings and a symbol graph so LLMs can search and navigate it. Ships as an MCP server.",
   "type": "module",
   "license": "MIT",
