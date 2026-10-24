@@ -14,6 +14,14 @@ The Release workflow on main fails with "GitHub Actions is not permitted to crea
 
 Answer: _(write here)_
 
+### Real-repo benchmark needs an embedding provider
+`repolens bench` is built and tested, but the cloud runs have no `AZURE_OPENAI_*` variables and cannot download the local model (huggingface.co is blocked). So the benchmark on a real open-source repo cannot run here. What do you want?
+- A (recommended): add `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` to the cloud environment; a later run benchmarks a small open-source repo and records it in docs/benchmarks.md.
+- B: run `repolens bench` yourself on your machine and paste the table into docs/benchmarks.md.
+- C: allow huggingface.co in the cloud network policy so the local model can be used.
+
+Answer: _(write here)_
+
 ## Milestones
 
 ### M0 Engineering foundation
@@ -22,7 +30,7 @@ Answer: _(write here)_
 - [x] Pre-commit hooks
 - [x] Release workflow (release-please); cut v0.1.0 by merging its release PR when M1 is released
 - [x] docker-compose.yml for Qdrant
-- [ ] Benchmark script (arrives with M7). The MCP contract test exists in src/mcp/server.test.ts and src/mcp/stdio.test.ts; fixture repos exist in test/fixtures
+- [x] Benchmark script (`repolens bench`, docs/benchmarks.md). The MCP contract test exists in src/mcp/server.test.ts and src/mcp/stdio.test.ts; fixture repos exist in test/fixtures
 
 ### M1 Scaffold
 - [x] TypeScript project on Node 22 (ESM, strict), package `@ardit175/repolens` with a `repolens` bin, ESLint, Prettier, Vitest with coverage
@@ -63,9 +71,9 @@ Answer: _(write here)_
 
 ### M7 Polish
 - [ ] README demo GIF
-- [ ] Benchmark on a real open-source repo (index time, search latency, recall on a small question set), written up in docs/
+- [ ] Run the benchmark on a real open-source repo and record it in docs/benchmarks.md (blocked: needs an embedding provider, see Needs Ardit). The `repolens bench` command and method are done
 - [ ] npm publish setup for `@ardit175/repolens` (needs an npm token: ask under Needs Ardit when it's reached)
-- [ ] docs/ folder covering configuration, providers, tools and architecture
+- [x] docs/ folder covering configuration, providers, tools and architecture
 
 ### M8 More languages (after M7)
 - [ ] Java chunking and symbol graph

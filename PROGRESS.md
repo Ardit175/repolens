@@ -60,3 +60,9 @@ One entry per scheduled run, newest last.
 - Next: M7 polish (docs folder, benchmark on a real repo, demo GIF, npm publish setup, which needs an NPM_TOKEN). The Release workflow permission question is still open under Needs Ardit, and the Azure smoke test still needs a run with the key.
 - Design decision: imports are linked to files by matching paths against the indexed file list only, never by touching disk or guessing at packages. That keeps the map identical whether or not the source checkout is present, and imports it cannot place are counted and shown as unresolved instead of silently drawn wrong.
 - LinkedIn: repolens can now draw your codebase as an interactive map of which files import which, in a single HTML file you can open anywhere.
+
+## 2026-10-24 M7 bench and docs
+- Built: `repolens bench` (index time, search latency p50/p95, Recall@k, MRR from a JSON question file, in-memory store by default, `--qdrant` to include Qdrant); a docs/ folder with configuration, providers, MCP tools and benchmark method; README and ARCHITECTURE updated.
+- Next: run the benchmark on a real repo (blocked on an embedding provider, see Needs Ardit), npm publish setup (needs NPM_TOKEN), demo GIF, then M8 Java. The Release workflow permission question is still open.
+- Design decision: the benchmark scores a hit by file path, not by chunk. Chunk boundaries change whenever the chunker improves, so a chunk-level score would make old and new results incomparable, while a file-level score stays meaningful across versions.
+- LinkedIn: repolens can now measure how well its own search finds the right file for a set of questions, so changes to the search can be judged by numbers instead of by feel.
