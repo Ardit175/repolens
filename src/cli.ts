@@ -11,6 +11,8 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
+import { formatBenchmark, parseQueries, runBenchmark } from './bench/bench.js';
+import { createEmbeddingProvider, type EmbeddingProvider } from './embeddings/index.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
@@ -18,6 +20,7 @@ import { buildMapData } from './map/build.js';
 import { renderMapHtml } from './map/html.js';
 import { serveStdio } from './mcp/server.js';
 import { createRuntime, type Runtime } from './runtime.js';
+import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex } from './search.js';
 import { walkFiles } from './walker.js';
 
@@ -33,10 +36,15 @@ const defaultIo: Io = {
 
 export interface Deps {
   createRuntime: () => Runtime;
+  createEmbeddings: () => EmbeddingProvider;
   serve: (runtime: Runtime, version: string) => Promise<void>;
 }
 
-const defaultDeps: Deps = { createRuntime: () => createRuntime(), serve: serveStdio };
+const defaultDeps: Deps = {
+  createRuntime: () => createRuntime(),
+  createEmbeddings: () => createEmbeddingProvider(),
+  serve: serveStdio,
+};
 
 const SHEBANG_PROBE_BYTES = 256;
 
@@ -218,6 +226,38 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
         fail(io, error);
       }
     });
+
+  program
+    .command('bench')
+    .description('Measure index time, search latency and recall on a directory with a queries file')
+    .argument('<path>', 'directory to index')
+    .requiredOption('--queries <file>', 'JSON file: [{ "query": "...", "expect": ["src/a.ts"] }]')
+    .option('-n, --limit <count>', 'top results that count for recall', parsePositiveInt, 5)
+    .option('--label <text>', 'heading for the markdown result', 'benchmark')
+    .option('--qdrant', 'use the Qdrant collection from QDRANT_URL instead of an in-memory store')
+    .action(
+      async (
+        target: string,
+        options: { queries: string; limit: number; label: string; qdrant?: boolean },
+      ) => {
+        try {
+          const queries = parseQueries(readFileSync(options.queries, 'utf8'));
+          const { store, embeddings } = options.qdrant
+            ? deps.createRuntime()
+            : { store: new InMemoryVectorStore(), embeddings: deps.createEmbeddings() };
+          const result = await runBenchmark({
+            root: target,
+            store,
+            embeddings,
+            queries,
+            limit: options.limit,
+          });
+          io.out(formatBenchmark(result, options.label));
+        } catch (error) {
+          fail(io, error);
+        }
+      },
+    );
 
   program
     .command('doctor')

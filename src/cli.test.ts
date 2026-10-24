@@ -146,7 +146,11 @@ describe('repolens index, search and doctor with a store', () => {
     return {
       store,
       graph,
-      deps: { createRuntime: () => ({ store, graph, embeddings }), serve },
+      deps: {
+        createRuntime: () => ({ store, graph, embeddings }),
+        createEmbeddings: () => embeddings,
+        serve,
+      },
     };
   };
   const runWith = async (deps: Deps, ...args: string[]) => {
@@ -249,6 +253,7 @@ describe('repolens index, search and doctor with a store', () => {
       createRuntime: () => {
         throw new Error('QDRANT_URL is not set.');
       },
+      createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
     };
     await runWith(failing, 'map');
@@ -267,10 +272,45 @@ describe('repolens index, search and doctor with a store', () => {
       createRuntime: () => {
         throw new Error('QDRANT_URL is not set.');
       },
+      createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
     };
     await runWith(failing, 'serve');
     expect(err).toContain('QDRANT_URL is not set.');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('bench indexes into memory and prints a markdown result', async () => {
+    const { deps, store } = memory();
+    write('src/auth.ts', 'export function loginUser(password: string) { return password; }\n');
+    write('queries.json', '[{"query":"loginUser password","expect":["src/auth.ts"]}]');
+    await runWith(
+      deps,
+      'bench',
+      dir,
+      '--queries',
+      path.join(dir, 'queries.json'),
+      '--label',
+      'demo',
+    );
+    expect(out).toContain('### demo');
+    expect(out).toContain('| Recall@5 (1 queries) | 100% |');
+    expect(await store.count()).toBe(0);
+  });
+
+  it('bench --qdrant uses the runtime store', async () => {
+    const { deps, store } = memory();
+    write('src/auth.ts', 'export function loginUser(password: string) { return password; }\n');
+    write('queries.json', '[{"query":"loginUser","expect":["src/auth.ts"]}]');
+    await runWith(deps, 'bench', dir, '--queries', path.join(dir, 'queries.json'), '--qdrant');
+    expect(await store.count()).toBeGreaterThan(0);
+  });
+
+  it('bench reports an invalid queries file', async () => {
+    const { deps } = memory();
+    write('queries.json', '[]');
+    await runWith(deps, 'bench', dir, '--queries', path.join(dir, 'queries.json'));
+    expect(err).toContain('non-empty JSON array');
     expect(process.exitCode).toBe(1);
   });
 
