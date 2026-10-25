@@ -3,6 +3,7 @@ import type { Language } from '../language.js';
 import { makeChunk } from './chunk.js';
 import { extractCSharpSymbols } from './csharp.js';
 import { fallbackChunks } from './fallback.js';
+import { extractJavaSymbols } from './java.js';
 import { parse, type Grammar } from './parser.js';
 import { extractPythonSymbols } from './python.js';
 import type { Chunk, RawSymbol } from './types.js';
@@ -21,6 +22,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   javascript: { grammar: 'javascript', extract: extractTypeScriptSymbols },
   jsx: { grammar: 'javascript', extract: extractTypeScriptSymbols },
   csharp: { grammar: 'c_sharp', extract: extractCSharpSymbols },
+  java: { grammar: 'java', extract: extractJavaSymbols },
   python: { grammar: 'python', extract: extractPythonSymbols },
 };
 
