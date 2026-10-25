@@ -29,6 +29,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Symbol graph (2026-10-21):** edges (imports and calls) live in a second Qdrant collection `repolens_graph` (1-dimension dummy vector, payload filters), so `serve` needs no source checkout and no new dependency. Each file stores a hash of its edge set and is rewritten only when it changes. Targets are matched by name only, with no type or module resolution; the tools say so in their output.
 - **Map (2026-10-23):** `repolens map` has no new dependency: the layout is a small built-in force simulation in inline JS, so the HTML works offline. Files are linked by resolving import specifiers against indexed paths only (relative TS/JS, Python dotted and relative modules); packages and C# namespaces are counted as unresolved rather than guessed.
 - **Benchmark (2026-10-24):** `repolens bench` uses an in-memory store by default so a benchmark never writes to the real Qdrant index, and reports Recall@k and MRR against files listed per question (file-level, so it does not depend on chunk boundaries). No new dependency. The real-repo run waits for an embedding provider in the cloud environment.
+- **Java (2026-10-25):** no new dependency; the `tree-sitter-java` grammar already ships in `tree-sitter-wasms`. Like C#, an enum or interface is one chunk, and Java package imports are not linked on the map.
 
 ## Environment variables
 | Name | Used for | Required |

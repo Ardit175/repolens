@@ -208,6 +208,100 @@ describe('C# edges', () => {
   });
 });
 
+describe('Java edges', () => {
+  it('extracts plain, wildcard and static imports', async () => {
+    const src = [
+      `package p;`,
+      `import a.b.C;`,
+      `import a.b.*;`,
+      `import static a.b.C.m;`,
+      `import static a.b.C.*;`,
+      `import Single;`,
+    ].join('\n');
+    expect(await extractGraph('A.java', 'java', src)).toEqual([
+      { path: 'A.java', language: 'java', kind: 'import', target: 'C', module: 'a.b.C', line: 2 },
+      { path: 'A.java', language: 'java', kind: 'import', target: '*', module: 'a.b', line: 3 },
+      { path: 'A.java', language: 'java', kind: 'import', target: 'm', module: 'a.b.C.m', line: 4 },
+      { path: 'A.java', language: 'java', kind: 'import', target: '*', module: 'a.b.C', line: 5 },
+      {
+        path: 'A.java',
+        language: 'java',
+        kind: 'import',
+        target: 'Single',
+        module: 'Single',
+        line: 6,
+      },
+    ]);
+  });
+
+  it('records the exact fields of a call edge', async () => {
+    const src = `class K { void run() { a.b.foo(); } }`;
+    expect(await extractGraph('K.java', 'java', src)).toEqual([
+      {
+        path: 'K.java',
+        language: 'java',
+        kind: 'call',
+        target: 'foo',
+        from: 'run',
+        fromParent: 'K',
+        line: 1,
+      },
+    ]);
+  });
+
+  it('attributes calls to methods, constructors, field initialisers and nested types', async () => {
+    const src = [
+      `package p;`, // 1
+      `public class Svc<T> extends Base {`, // 2
+      `  private Repo r = make();`, // 3
+      `  public Svc() { init(); }`, // 4
+      `  public void run() {`, // 5
+      `    foo();`, // 6
+      `    a.bar();`, // 7
+      `    a.foo().baz();`, // 8
+      `    var x = new Widget<T>();`, // 9
+      `    var y = new a.b.Gadget();`, // 10
+      `  }`,
+      `  class Nested { void go() { deep(); } }`, // 12
+      `}`,
+    ].join('\n');
+    expect(await edges('Svc.java', 'java', src)).toEqual([
+      'call make Svc@3',
+      'call init Svc.Svc@4',
+      'call foo Svc.run@6',
+      'call bar Svc.run@7',
+      'call baz Svc.run@8',
+      'call foo Svc.run@8',
+      'call Widget Svc.run@9',
+      'call Gadget Svc.run@10',
+      'call deep Nested.go@12',
+    ]);
+  });
+
+  it('handles enums, records, interfaces and annotation types', async () => {
+    const src = [
+      `enum E { A, B; void f() { g(); } }`, // 1
+      `record R(int a) { void z() { y(); } }`, // 2
+      `interface I { default void d() { x(); } }`, // 3
+      `@interface Ann { int v() default 1; }`, // 4
+    ].join('\n');
+    expect(await edges('T.java', 'java', src)).toEqual([
+      'call g E.f@1',
+      'call y R.z@2',
+      'call x I.d@3',
+    ]);
+  });
+
+  it('gives no edges for a file with only a package line', async () => {
+    expect(await extractGraph('p.java', 'java', 'package p;\n')).toEqual([]);
+  });
+
+  it('does not throw on broken syntax', async () => {
+    const result = await extractGraph('A.java', 'java', `import ;\nclass { void ( { foo(`);
+    expect(Array.isArray(result)).toBe(true);
+  });
+});
+
 describe('extractGraph', () => {
   it('returns no edges for unsupported or unknown languages', async () => {
     expect(await extractGraph('a.go', 'go', 'package main\nfunc f() { g() }')).toEqual([]);
