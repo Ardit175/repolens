@@ -3,6 +3,7 @@ import type { Node } from 'web-tree-sitter';
 import { parse, type Grammar } from '../chunker/parser.js';
 import type { Language } from '../language.js';
 import { extractCSharpEdges } from './csharp.js';
+import { extractJavaEdges } from './java.js';
 import { extractPythonEdges } from './python.js';
 import { extractTypeScriptEdges } from './typescript.js';
 import type { GraphEdge } from './types.js';
@@ -20,6 +21,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   javascript: { grammar: 'javascript', extract: extractTypeScriptEdges },
   jsx: { grammar: 'javascript', extract: extractTypeScriptEdges },
   csharp: { grammar: 'c_sharp', extract: extractCSharpEdges },
+  java: { grammar: 'java', extract: extractJavaEdges },
   python: { grammar: 'python', extract: extractPythonEdges },
 };
 
