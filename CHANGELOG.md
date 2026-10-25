@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- 2026-10-25: M8 finished: Java chunking (classes, records, interfaces, enums, methods, constructors) and Java imports and calls in the symbol graph.
 - 2026-10-24: M7 start: `repolens bench` (index time, search latency, Recall@k, MRR) and a docs/ folder covering configuration, providers, MCP tools and benchmark method.
 - 2026-10-23: M6 finished: `repolens map` writes a self-contained interactive HTML graph of files and their imports (zoom, pan, search, language filter, neighbour panel).
 - 2026-10-21: M5 finished: import and call extraction for TS/JS, Python and C#, an incrementally updated symbol graph in Qdrant, and the `find_references` and `call_graph` MCP tools.

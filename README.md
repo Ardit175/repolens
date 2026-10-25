@@ -30,7 +30,7 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 - `index` re-embeds only files whose chunks changed and removes files that were deleted. `--dry-run` just summarises files by language without Qdrant or embeddings.
 - Embeddings use Azure OpenAI when `AZURE_OPENAI_*` is set, otherwise a local model that needs no key (the first run downloads it). Force one with `REPOLENS_EMBEDDINGS=azure|local`.
 
-- `map` writes one self-contained HTML file (no network needed to view it) with a zoomable graph of files and their imports. Search by path, filter by language, click a file to see what it imports and what imports it. `--path src/` limits it to a directory. Relative TS/JS imports and Python modules are linked; packages and C# namespaces are counted as unresolved, not drawn.
+- `map` writes one self-contained HTML file (no network needed to view it) with a zoomable graph of files and their imports. Search by path, filter by language, click a file to see what it imports and what imports it. `--path src/` limits it to a directory. Relative TS/JS imports and Python modules are linked; packages, Java packages and C# namespaces are counted as unresolved, not drawn.
 
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
@@ -73,4 +73,4 @@ The package is not on npm yet (see M7), so until then build it (`npm run build`)
 
 ## Status
 
-M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the MCP tools. M5 adds the symbol graph and the `find_references` and `call_graph` tools. M6 adds `repolens map`. M7 (polish) has the docs folder and the `bench` command; the real-repository benchmark, demo GIF and npm publish are still open.
+M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M8 adds Java chunking and symbol graph. M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the MCP tools. M5 adds the symbol graph and the `find_references` and `call_graph` tools. M6 adds `repolens map`. M7 (polish) has the docs folder and the `bench` command; the real-repository benchmark, demo GIF and npm publish are still open.

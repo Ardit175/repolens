@@ -29,4 +29,4 @@ The vector index lives in the Qdrant collection `repolens` and the symbol graph 
 
 ## Supported languages
 
-TypeScript, TSX, JavaScript and JSX, Python and C# are chunked per function, method and class, and their imports and calls go into the symbol graph. Other text files are split into 60-line windows and are searchable but have no graph edges.
+TypeScript, TSX, JavaScript and JSX, Python, C# and Java are chunked per function, method and class, and their imports and calls go into the symbol graph. Other text files are split into 60-line windows and are searchable but have no graph edges.

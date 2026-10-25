@@ -76,4 +76,4 @@ Answer: _(write here)_
 - [x] docs/ folder covering configuration, providers, tools and architecture
 
 ### M8 More languages (after M7)
-- [ ] Java chunking and symbol graph
+- [x] Java chunking and symbol graph (classes, records, interfaces, enums, methods, constructors; imports and calls). Methods inside enums and interfaces are not chunked separately, the whole type is one chunk

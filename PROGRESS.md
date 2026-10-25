@@ -66,3 +66,9 @@ One entry per scheduled run, newest last.
 - Next: run the benchmark on a real repo (blocked on an embedding provider, see Needs Ardit), npm publish setup (needs NPM_TOKEN), demo GIF, then M8 Java. The Release workflow permission question is still open.
 - Design decision: the benchmark scores a hit by file path, not by chunk. Chunk boundaries change whenever the chunker improves, so a chunk-level score would make old and new results incomparable, while a file-level score stays meaningful across versions.
 - LinkedIn: repolens can now measure how well its own search finds the right file for a set of questions, so changes to the search can be judged by numbers instead of by feel.
+
+## 2026-10-25 M8 Java
+- Built: Java chunking (classes, records, interfaces, enums, methods, constructors, nested types, Javadoc and annotations included) and Java imports and calls in the symbol graph, with a fixture and tests. `find_references`, `call_graph` and `search` now work on Java repos.
+- Next: still blocked on the Needs Ardit items (Release permission, embedding provider for the real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, new languages such as Go.
+- Design decision: Java reuses the C# adapter's shape instead of a shared generic walker. The two grammars name nodes differently, so a generic walker would need a config table that is harder to read than two short files, and each adapter stays easy to test on its own.
+- LinkedIn: repolens now understands Java projects too, so an AI assistant can search them and follow who calls what.
