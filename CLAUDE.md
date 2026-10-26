@@ -36,6 +36,7 @@ These rules come from Ardit's setup brief and his answers in DECISIONS.md. Follo
 - Roughly 4 to 10 commits on a weekday and up to about 15 on a weekend, but only as many as the real work produces. Never make filler commits (whitespace-only, typo-only or empty) to raise the count.
 - No "Generated with Claude" lines and no Co-Authored-By trailers.
 - Push directly to `main`. Never rewrite history on main: no force-push, no rebase or amend of commits that are already pushed.
+- Merge your own changes. When work goes through a pull request, wait for green CI, then merge it (merge commit, delete the branch) without asking Ardit. If CI is red, fix it or leave the PR open and say why. Never merge red.
 
 ### Secrets and paid services
 - Never commit secrets, real API keys or `.env` files. Keep `.env.example` current and read keys from environment variables.
