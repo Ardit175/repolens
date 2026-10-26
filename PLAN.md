@@ -12,7 +12,7 @@ The Release workflow on main fails with "GitHub Actions is not permitted to crea
 - B: Add a repo secret `RELEASE_PLEASE_TOKEN` (a fine-grained PAT with contents and pull-requests write) and I will switch the workflow to it.
 - C: Drop release-please and tag releases by hand.
 
-Answer: _(write here)_
+Answer: A (done by Ardit, 2026-10-26)
 
 ### Real-repo benchmark needs an embedding provider
 `repolens bench` is built and tested, but the cloud runs have no `AZURE_OPENAI_*` variables and cannot download the local model (huggingface.co is blocked). So the benchmark on a real open-source repo cannot run here. What do you want?
@@ -20,7 +20,7 @@ Answer: _(write here)_
 - B: run `repolens bench` yourself on your machine and paste the table into docs/benchmarks.md.
 - C: allow huggingface.co in the cloud network policy so the local model can be used.
 
-Answer: _(write here)_
+Answer: A (variables added to the cloud environment, 2026-10-26)
 
 ## Milestones
 
