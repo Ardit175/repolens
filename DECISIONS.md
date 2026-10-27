@@ -30,6 +30,9 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Map (2026-10-23):** `repolens map` has no new dependency: the layout is a small built-in force simulation in inline JS, so the HTML works offline. Files are linked by resolving import specifiers against indexed paths only (relative TS/JS, Python dotted and relative modules); packages and C# namespaces are counted as unresolved rather than guessed.
 - **Benchmark (2026-10-24):** `repolens bench` uses an in-memory store by default so a benchmark never writes to the real Qdrant index, and reports Recall@k and MRR against files listed per question (file-level, so it does not depend on chunk boundaries). No new dependency. The real-repo run waits for an embedding provider in the cloud environment.
 - **Java (2026-10-25):** no new dependency; the `tree-sitter-java` grammar already ships in `tree-sitter-wasms`. Like C#, an enum or interface is one chunk, and Java package imports are not linked on the map.
+- **Release permission (2026-10-27):** Ardit enabled "Allow GitHub Actions to create and approve pull requests", so release-please opens release PRs with the default token.
+- **Embedding provider for benchmarks (2026-10-27):** Ardit added the `AZURE_OPENAI_*` variables to the cloud environment. The network policy still blocks the Azure host, so the benchmark waits on that (see Needs Ardit).
+- **Go (2026-10-27):** no new dependency; `tree-sitter-go.wasm` ships in `tree-sitter-wasms`. A Go struct is a `class` chunk and an interface an `interface` chunk. Methods are declared outside their type, so they are their own chunks with `parent` set to the receiver type and the type chunk is not truncated. Imports are targets by package name (or alias) and are not linked on the map.
 
 ## Environment variables
 | Name | Used for | Required |

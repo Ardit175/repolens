@@ -72,3 +72,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on the Needs Ardit items (Release permission, embedding provider for the real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, new languages such as Go.
 - Design decision: Java reuses the C# adapter's shape instead of a shared generic walker. The two grammars name nodes differently, so a generic walker would need a config table that is harder to read than two short files, and each adapter stays easy to test on its own.
 - LinkedIn: repolens now understands Java projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-10-27 M8 Go
+- Built: Go chunking (functions, methods tied to their receiver type, structs, interfaces, aliases and grouped type blocks, doc comments included) and Go imports and calls in the symbol graph, with a fixture and tests. Recorded Ardit's answers and added a new Needs Ardit item: the cloud network policy blocks the Azure host.
+- Next: blocked on the Needs Ardit items (allow `*.openai.azure.com` for the smoke test and real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, another language such as Rust.
+- Design decision: Go methods are declared outside their type, so the Go adapter does not shorten the type chunk the way the Java and C# adapters do. Each method becomes its own chunk with the receiver type as parent, which keeps `get_symbol` and `call_graph` lookups working the same as in the other languages.
+- LinkedIn: repolens now reads Go projects too, so an AI assistant can search them and follow who calls what.

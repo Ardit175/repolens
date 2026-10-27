@@ -6,21 +6,13 @@ Decisions behind this plan are in DECISIONS.md. Runs work top to bottom.
 
 ## Needs Ardit
 
-### Release workflow cannot open PRs
-The Release workflow on main fails with "GitHub Actions is not permitted to create or approve pull requests". I cannot change this repo setting. How do you want to fix it?
-- A (recommended): Settings > Actions > General > Workflow permissions, tick "Allow GitHub Actions to create and approve pull requests".
-- B: Add a repo secret `RELEASE_PLEASE_TOKEN` (a fine-grained PAT with contents and pull-requests write) and I will switch the workflow to it.
-- C: Drop release-please and tag releases by hand.
-
-Answer: A (done by Ardit, 2026-10-26)
-
-### Real-repo benchmark needs an embedding provider
-`repolens bench` is built and tested, but the cloud runs have no `AZURE_OPENAI_*` variables and cannot download the local model (huggingface.co is blocked). So the benchmark on a real open-source repo cannot run here. What do you want?
-- A (recommended): add `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` to the cloud environment; a later run benchmarks a small open-source repo and records it in docs/benchmarks.md.
+### Cloud network policy blocks Azure OpenAI
+The Azure variables are now set in the cloud environment, but the policy proxy answers 403 for `zk-lms.openai.azure.com`, so the smoke test and the real-repo benchmark still cannot run (the local model is blocked too). What do you want?
+- A (recommended): add `*.openai.azure.com` to the allowed domains in the cloud environment's network policy. A later run then ticks the smoke test and records a benchmark on a small open-source repo.
 - B: run `repolens bench` yourself on your machine and paste the table into docs/benchmarks.md.
-- C: allow huggingface.co in the cloud network policy so the local model can be used.
+- C: allow huggingface.co instead so the local model can be used.
 
-Answer: A (variables added to the cloud environment, 2026-10-26)
+Answer:
 
 ## Milestones
 
@@ -77,3 +69,4 @@ Answer: A (variables added to the cloud environment, 2026-10-26)
 
 ### M8 More languages (after M7)
 - [x] Java chunking and symbol graph (classes, records, interfaces, enums, methods, constructors; imports and calls). Methods inside enums and interfaces are not chunked separately, the whole type is one chunk
+- [x] Go chunking and symbol graph (functions, methods with the receiver type as parent, structs, interfaces and other types; imports and calls). Go imports are not linked on the map
