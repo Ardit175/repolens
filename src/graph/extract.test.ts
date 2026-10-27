@@ -304,7 +304,7 @@ describe('Java edges', () => {
 
 describe('extractGraph', () => {
   it('returns no edges for unsupported or unknown languages', async () => {
-    expect(await extractGraph('a.go', 'go', 'package main\nfunc f() { g() }')).toEqual([]);
+    expect(await extractGraph('a.rs', 'rust', 'fn f() { g(); }')).toEqual([]);
     expect(await extractGraph('a.txt', undefined, 'foo()')).toEqual([]);
   });
 });
@@ -331,5 +331,73 @@ describe('edgesHash', () => {
       expect(edgesHash([first[0]!, { ...base, ...change }])).not.toBe(hash);
     }
     expect(edgesHash([first[0]!, { ...base, module: 'm' }])).not.toBe(hash);
+  });
+});
+
+describe('Go edges', () => {
+  it('extracts single, grouped, aliased, dot and blank imports', async () => {
+    const src = [
+      `package main`, // 1
+      `import "fmt"`, // 2
+      `import (`, // 3
+      `  "net/http"`, // 4
+      `  str "strings"`, // 5
+      `  . "math"`, // 6
+      `  _ "embed"`, // 7
+      `)`,
+    ].join('\n');
+    expect(await edges('a.go', 'go', src)).toEqual([
+      'import fmt fmt@2',
+      'import http net/http@4',
+      'import str strings@5',
+      'import * math@6',
+      'import * embed@7',
+    ]);
+  });
+
+  it('attributes calls to functions and to methods with their receiver type', async () => {
+    const src = [
+      `package main`, // 1
+      `func run() {`, // 2
+      `  foo()`, // 3
+      `  http.Get("x")`, // 4
+      `  s.Close()`, // 5
+      `  c := Circle{}`, // 6
+      `}`,
+      `func (c *Circle) Area() float64 { return helper() }`, // 8
+      `func (b Box[T]) Get() T { return b.load() }`, // 9
+      `func (*Plain) Name() string { return name() }`, // 10
+    ].join('\n');
+    expect(await edges('a.go', 'go', src)).toEqual([
+      'call foo run@3',
+      'call Get run@4',
+      'call Close run@5',
+      'call helper Circle.Area@8',
+      'call load Box.Get@9',
+      'call name Plain.Name@10',
+    ]);
+  });
+
+  it('handles goroutines, defer, func literals and package-level initialisers', async () => {
+    const src = [
+      `package main`, // 1
+      `var cfg = load()`, // 2
+      `func main() {`, // 3
+      `  go serve()`, // 4
+      `  defer s.Close()`, // 5
+      `  func() { inner() }()`, // 6
+      `}`,
+    ].join('\n');
+    expect(await edges('a.go', 'go', src)).toEqual([
+      'call load -@2',
+      'call serve main@4',
+      'call Close main@5',
+      'call inner main@6',
+    ]);
+  });
+
+  it('does not throw on broken syntax', async () => {
+    const result = await extractGraph('a.go', 'go', `package\nimport (\nfunc ( { foo(`);
+    expect(Array.isArray(result)).toBe(true);
   });
 });

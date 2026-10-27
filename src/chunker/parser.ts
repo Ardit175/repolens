@@ -4,7 +4,7 @@ import { Language as TsLanguage, Parser, type Tree } from 'web-tree-sitter';
 const require = createRequire(import.meta.url);
 
 /** Names of the grammars shipped by the tree-sitter-wasms package. */
-export type Grammar = 'typescript' | 'tsx' | 'javascript' | 'python' | 'c_sharp' | 'java';
+export type Grammar = 'typescript' | 'tsx' | 'javascript' | 'python' | 'c_sharp' | 'java' | 'go';
 
 let initialised: Promise<void> | undefined;
 const languages = new Map<Grammar, Promise<TsLanguage>>();
