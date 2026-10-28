@@ -78,3 +78,9 @@ One entry per scheduled run, newest last.
 - Next: blocked on the Needs Ardit items (allow `*.openai.azure.com` for the smoke test and real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, another language such as Rust.
 - Design decision: Go methods are declared outside their type, so the Go adapter does not shorten the type chunk the way the Java and C# adapters do. Each method becomes its own chunk with the receiver type as parent, which keeps `get_symbol` and `call_graph` lookups working the same as in the other languages.
 - LinkedIn: repolens now reads Go projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-10-28 release pin
+- Built: nothing new to build, every open PLAN item is blocked on Needs Ardit (Azure network policy, NPM_TOKEN, demo GIF). The release PR (#13) proposed 1.0.0 from 0.0.0, so I pinned the first release to 0.1.0 with `release-as` in the release-please config. Merging the updated release PR cuts v0.1.0.
+- Next: merge the updated release PR, remove `release-as`, then Rust once the blocked items clear.
+- Design decision: pin the version with `release-as` instead of editing the manifest by hand. The manifest is release-please's own state, and a config pin is removed in one line once the first release exists.
+- LinkedIn: repolens is ready for its first tagged release, with a changelog written from the commit history.

@@ -18,7 +18,8 @@ Answer:
 
 ### M0 Engineering foundation
 - [x] CI, lint, format, typecheck, coverage, build, `npm pack --dry-run`, `npm run check`, PR template, Dependabot, gitleaks and CodeQL, PR title check, ARCHITECTURE.md
-- [ ] Workflow files need pushing (see Needs Ardit if the push is rejected)
+- [ ] After the v0.1.0 release PR merges, remove `release-as` from release-please-config.json (it pins the first release; without it release-please proposed 1.0.0 from 0.0.0)
+- [x] Workflow files pushed (no longer blocked) (see Needs Ardit if the push is rejected)
 - [x] Pre-commit hooks
 - [x] Release workflow (release-please); cut v0.1.0 by merging its release PR when M1 is released
 - [x] docker-compose.yml for Qdrant

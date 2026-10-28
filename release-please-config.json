@@ -5,7 +5,8 @@
       "release-type": "node",
       "package-name": "@ardit175/repolens",
       "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true
+      "bump-minor-pre-major": true,
+      "release-as": "0.1.0"
     }
   }
 }
