@@ -84,3 +84,9 @@ One entry per scheduled run, newest last.
 - Next: merge the updated release PR, remove `release-as`, then Rust once the blocked items clear.
 - Design decision: pin the version with `release-as` instead of editing the manifest by hand. The manifest is release-please's own state, and a config pin is removed in one line once the first release exists.
 - LinkedIn: repolens is ready for its first tagged release, with a changelog written from the commit history.
+
+## 2026-10-29
+- Built: cut the v0.1.0 release. Merged the release-please PR after running the full check locally (bot-opened PRs get no CI), and fixed the format check so release-please's manifest no longer fails it. Removed the `release-as` pin from the release config.
+- Next: the remaining M7 items all need Ardit (Azure network policy for the benchmark and smoke test, an npm token for publishing) or a recorded demo GIF.
+- Design decision: PRs opened by the default GITHUB_TOKEN do not trigger workflows, so the release PR shows no checks. Rather than merge it blind, I ran `npm run check` against its branch, which caught a Prettier failure that would have turned main red after the merge, and fixed it first.
+- LinkedIn: Shipped v0.1.0 of repolens, an MCP server that gives LLMs search and a symbol graph over a codebase, with chunking for TypeScript, Python, C#, Java and Go.
