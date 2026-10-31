@@ -6,6 +6,7 @@ import { extractCSharpEdges } from './csharp.js';
 import { extractGoEdges } from './go.js';
 import { extractJavaEdges } from './java.js';
 import { extractPythonEdges } from './python.js';
+import { extractRustEdges } from './rust.js';
 import { extractTypeScriptEdges } from './typescript.js';
 import type { GraphEdge } from './types.js';
 
@@ -25,6 +26,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   java: { grammar: 'java', extract: extractJavaEdges },
   python: { grammar: 'python', extract: extractPythonEdges },
   go: { grammar: 'go', extract: extractGoEdges },
+  rust: { grammar: 'rust', extract: extractRustEdges },
 };
 
 /** Extracts imports and calls from a source file. Unsupported languages have no edges. */

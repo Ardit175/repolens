@@ -304,7 +304,7 @@ describe('Java edges', () => {
 
 describe('extractGraph', () => {
   it('returns no edges for unsupported or unknown languages', async () => {
-    expect(await extractGraph('a.rs', 'rust', 'fn f() { g(); }')).toEqual([]);
+    expect(await extractGraph('a.sh', 'shell', 'foo')).toEqual([]);
     expect(await extractGraph('a.txt', undefined, 'foo()')).toEqual([]);
   });
 });
@@ -399,5 +399,64 @@ describe('Go edges', () => {
   it('does not throw on broken syntax', async () => {
     const result = await extractGraph('a.go', 'go', `package\nimport (\nfunc ( { foo(`);
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+describe('Rust edges', () => {
+  it('extracts plain, aliased, grouped, self and glob imports', async () => {
+    const src = [
+      `use std::collections::HashMap;`, // 1
+      `use std::io::Result as IoResult;`, // 2
+      `use std::fmt::{self, Display, Write as W};`, // 3
+      `use crate::util::*;`, // 4
+      `use serde;`, // 5
+    ].join('\n');
+    expect(await edges('a.rs', 'rust', src)).toEqual([
+      'import HashMap std::collections::HashMap@1',
+      'import IoResult std::io::Result@2',
+      'import fmt std::fmt@3',
+      'import Display std::fmt::Display@3',
+      'import W std::fmt::Write@3',
+      'import * crate::util@4',
+      'import serde serde@5',
+    ]);
+  });
+
+  it('attributes calls to functions and to impl methods with the implemented type', async () => {
+    const src = [
+      `fn run() {`, // 1
+      `  foo();`, // 2
+      `  Circle::new(1.0);`, // 3
+      `  s.close();`, // 4
+      `  parse::<u8>("1");`, // 5
+      `  println!("x");`, // 6
+      `}`,
+      `impl Circle {`, // 8
+      `  fn area(&self) -> f64 { helper() }`, // 9
+      `}`,
+      `impl<T> Shape for Wrapper<T> {`, // 11
+      `  fn show(&self) { self.load() }`, // 12
+      `}`,
+    ].join('\n');
+    expect(await edges('a.rs', 'rust', src)).toEqual([
+      'call foo run@2',
+      'call new run@3',
+      'call close run@4',
+      'call parse run@5',
+      'call helper Circle.area@9',
+      'call load Wrapper.show@12',
+    ]);
+  });
+
+  it('handles inline modules, statics and broken syntax', async () => {
+    const src = [
+      `static CFG: Lazy<Cfg> = Lazy::new(load);`, // 1
+      `mod inner {`, // 2
+      `  fn go() { deep(); }`, // 3
+      `}`,
+    ].join('\n');
+    expect(await edges('a.rs', 'rust', src)).toEqual(['call new -@1', 'call deep go@3']);
+    const broken = await extractGraph('a.rs', 'rust', `use a::{;\nfn ( { foo(`);
+    expect(Array.isArray(broken)).toBe(true);
   });
 });
