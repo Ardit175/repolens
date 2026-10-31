@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0](https://github.com/Ardit175/repolens/compare/repolens-v0.1.0...repolens-v0.2.0) (2026-10-31)
+
+
+### Features
+
+* chunk Rust files by function, impl method, trait, struct, enum and type ([3bbda41](https://github.com/Ardit175/repolens/commit/3bbda41fc260330ee82c8817caedaa31ae3c52ec))
+* extract imports and calls from Rust files into the symbol graph ([97fac5f](https://github.com/Ardit175/repolens/commit/97fac5f524b270a11a87f05808e96b8a18198f43))
+* Rust chunking and symbol graph ([5cabcdf](https://github.com/Ardit175/repolens/commit/5cabcdf43f1ad4e09b050db3febdc97f3fde22d7))
+
 ## 0.1.0 (2026-10-28)
 
 
