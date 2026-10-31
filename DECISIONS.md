@@ -33,6 +33,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Release permission (2026-10-27):** Ardit enabled "Allow GitHub Actions to create and approve pull requests", so release-please opens release PRs with the default token.
 - **Embedding provider for benchmarks (2026-10-27):** Ardit added the `AZURE_OPENAI_*` variables to the cloud environment. The network policy still blocks the Azure host, so the benchmark waits on that (see Needs Ardit).
 - **Go (2026-10-27):** no new dependency; `tree-sitter-go.wasm` ships in `tree-sitter-wasms`. A Go struct is a `class` chunk and an interface an `interface` chunk. Methods are declared outside their type, so they are their own chunks with `parent` set to the receiver type and the type chunk is not truncated. Imports are targets by package name (or alias) and are not linked on the map.
+- **Rust (2026-10-31):** no new dependency; `tree-sitter-rust.wasm` ships in `tree-sitter-wasms`. Methods in any `impl` block (inherent or trait) take the implemented type as parent, as in Go, so the struct chunk stays whole. A trait is one chunk like a Java interface. Items in inline `mod` blocks are treated as top level. `use` trees are flattened into one import per name (`*` for globs); macros such as `println!` are not recorded as calls.
 
 ## Environment variables
 | Name | Used for | Required |
