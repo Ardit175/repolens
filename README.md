@@ -73,4 +73,4 @@ The package is not on npm yet (see M7), so until then build it (`npm run build`)
 
 ## Status
 
-M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M8 adds Java and Go chunking and symbol graph. M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the MCP tools. M5 adds the symbol graph and the `find_references` and `call_graph` tools. M6 adds `repolens map`. M7 (polish) has the docs folder and the `bench` command; the real-repository benchmark, demo GIF and npm publish are still open.
+M1 to M2 are done (walker, language detection, chunking for TS/JS, Python and C#). M8 adds Java, Go and Rust chunking and symbol graph. M3 is done except the opt-in Azure smoke test: embeddings, Qdrant storage, incremental `index`, `search` and `doctor`. M4 adds `repolens serve` with the MCP tools. M5 adds the symbol graph and the `find_references` and `call_graph` tools. M6 adds `repolens map`. M7 (polish) has the docs folder and the `bench` command; the real-repository benchmark, demo GIF and npm publish are still open.

@@ -14,6 +14,14 @@ The Azure variables are now set in the cloud environment, but the policy proxy a
 
 Answer:
 
+### npm publish needs a token
+M7 wants `@ardit175/repolens` published to npm. How do you want to do it?
+- A (recommended): create an npm automation token and add it as the GitHub repo secret `NPM_TOKEN`. A later run then adds a publish step to the release workflow, so each release-please release publishes itself.
+- B: publish by hand from your machine with `npm publish --access public` after each release.
+- C: do not publish to npm for now.
+
+Answer:
+
 ## Milestones
 
 ### M0 Engineering foundation
@@ -71,3 +79,4 @@ Answer:
 ### M8 More languages (after M7)
 - [x] Java chunking and symbol graph (classes, records, interfaces, enums, methods, constructors; imports and calls). Methods inside enums and interfaces are not chunked separately, the whole type is one chunk
 - [x] Go chunking and symbol graph (functions, methods with the receiver type as parent, structs, interfaces and other types; imports and calls). Go imports are not linked on the map
+- [x] Rust chunking and symbol graph (functions, impl and trait-impl methods with the implemented type as parent, structs, unions, enums, traits, type aliases; `use` imports and calls). A trait is one chunk, so default methods are not chunked separately; macro invocations are not calls

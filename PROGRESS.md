@@ -90,3 +90,9 @@ One entry per scheduled run, newest last.
 - Next: the remaining M7 items all need Ardit (Azure network policy for the benchmark and smoke test, an npm token for publishing) or a recorded demo GIF.
 - Design decision: PRs opened by the default GITHUB_TOKEN do not trigger workflows, so the release PR shows no checks. Rather than merge it blind, I ran `npm run check` against its branch, which caught a Prettier failure that would have turned main red after the merge, and fixed it first.
 - LinkedIn: Shipped v0.1.0 of repolens, an MCP server that gives LLMs search and a symbol graph over a codebase, with chunking for TypeScript, Python, C#, Java and Go.
+
+## 2026-10-31 M8 Rust
+- Built: Rust chunking (functions, impl and trait-impl methods, structs, enums, traits, type aliases, doc comments and attributes included) and Rust `use` imports and calls in the symbol graph, with a fixture and tests. Added a Needs Ardit item for the npm token.
+- Next: still blocked on Ardit (allow `*.openai.azure.com` for the smoke test and real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, another language such as Ruby or PHP.
+- Design decision: Rust methods live in `impl` blocks apart from the type, so, like Go, the adapter leaves the struct chunk whole and emits each method with the implemented type as its parent. A trait impl and an inherent impl are treated the same, so `get_symbol` finds `Circle.area` no matter which block defines it.
+- LinkedIn: repolens now reads Rust projects too, so an AI assistant can search them and follow who calls what.
