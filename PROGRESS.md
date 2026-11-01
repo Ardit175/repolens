@@ -96,3 +96,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com` for the smoke test and real-repo benchmark, NPM_TOKEN for publish, demo GIF). After those, another language such as Ruby or PHP.
 - Design decision: Rust methods live in `impl` blocks apart from the type, so, like Go, the adapter leaves the struct chunk whole and emits each method with the implemented type as its parent. A trait impl and an inherent impl are treated the same, so `get_symbol` finds `Circle.area` no matter which block defines it.
 - LinkedIn: repolens now reads Rust projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-01 M8 Ruby
+- Built: merged the open release PR (v0.2.0) after a local full check, then added Ruby chunking (classes, modules, methods, singleton methods, comments included) and Ruby `require` imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as PHP.
+- Design decision: a Ruby class chunk stops before its first method or its first nested class, not just the first method. A module that only wraps nested classes would otherwise embed every nested class a second time, which skews search results.
+- LinkedIn: repolens now reads Ruby projects too, so an AI assistant can search them and follow who calls what.

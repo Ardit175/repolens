@@ -10,6 +10,7 @@ export type Language =
   | 'java'
   | 'go'
   | 'rust'
+  | 'ruby'
   | 'json'
   | 'markdown'
   | 'yaml'
@@ -30,6 +31,7 @@ const BY_EXTENSION: Record<string, Language> = {
   '.java': 'java',
   '.go': 'go',
   '.rs': 'rust',
+  '.rb': 'ruby',
   '.json': 'json',
   '.md': 'markdown',
   '.yaml': 'yaml',
@@ -47,6 +49,7 @@ const BY_INTERPRETER: Record<string, Language> = {
   bash: 'shell',
   sh: 'shell',
   zsh: 'shell',
+  ruby: 'ruby',
 };
 
 /** True when the file's extension alone identifies its language. */

@@ -7,6 +7,7 @@ import { extractGoSymbols } from './go.js';
 import { extractJavaSymbols } from './java.js';
 import { parse, type Grammar } from './parser.js';
 import { extractPythonSymbols } from './python.js';
+import { extractRubySymbols } from './ruby.js';
 import { extractRustSymbols } from './rust.js';
 import type { Chunk, RawSymbol } from './types.js';
 import { extractTypeScriptSymbols } from './typescript.js';
@@ -28,6 +29,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   go: { grammar: 'go', extract: extractGoSymbols },
   python: { grammar: 'python', extract: extractPythonSymbols },
   rust: { grammar: 'rust', extract: extractRustSymbols },
+  ruby: { grammar: 'ruby', extract: extractRubySymbols },
 };
 
 /**

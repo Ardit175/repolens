@@ -460,3 +460,55 @@ describe('Rust edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('Ruby edges', () => {
+  it('extracts require and require_relative with the string argument as target', async () => {
+    const src = [
+      `require 'json'`, // 1
+      `require_relative "util/helpers"`, // 2
+      `require some_path`, // 3
+    ].join('\n');
+    expect(await edges('a.rb', 'ruby', src)).toEqual([
+      'import json json@1',
+      'import util/helpers util/helpers@2',
+    ]);
+  });
+
+  it('attributes calls to methods with the enclosing class and skips noise', async () => {
+    const src = [
+      `class Circle`, // 1
+      `  attr_accessor :radius`, // 2
+      `  def area`, // 3
+      `    helper(radius)`, // 4
+      `    puts "x"`, // 5
+      `    Geometry.square(1)`, // 6
+      `  end`, // 7
+      `  def self.unit`, // 8
+      `    new(1)`, // 9
+      `  end`, // 10
+      `  class Label`, // 11
+      `    def text; render(1); end`, // 12
+      `  end`, // 13
+      `end`, // 14
+      `def run`, // 15
+      `  shapes.map { |s| s.area }`, // 16
+      `end`, // 17
+      `setup(1)`, // 18
+    ].join('\n');
+    expect(await edges('a.rb', 'ruby', src)).toEqual([
+      'call helper Circle.area@4',
+      'call square Circle.area@6',
+      'call render Label.text@12',
+      'call map run@16',
+      'call area run@16',
+      'call setup -@18',
+    ]);
+  });
+
+  it('handles scoped modules and broken syntax', async () => {
+    const src = [`module A::B`, `  def f; g(1); end`, `end`].join('\n');
+    expect(await edges('a.rb', 'ruby', src)).toEqual(['call g B.f@2']);
+    const broken = await extractGraph('a.rb', 'ruby', `require 'x\ndef ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});
