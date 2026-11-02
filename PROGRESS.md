@@ -102,3 +102,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as PHP.
 - Design decision: a Ruby class chunk stops before its first method or its first nested class, not just the first method. A module that only wraps nested classes would otherwise embed every nested class a second time, which skews search results.
 - LinkedIn: repolens now reads Ruby projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-02 M8 PHP
+- Built: PHP chunking (classes, interfaces, traits, enums, methods, functions, comments included) and PHP `use`/`require` imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Kotlin.
+- Design decision: PHP built-ins like `count` and `array_map` are filtered out of the call edges. They appear in nearly every file, so keeping them would bury the calls to the project's own functions in `find_references` results.
+- LinkedIn: repolens now reads PHP projects too, so an AI assistant can search them and follow who calls what.
