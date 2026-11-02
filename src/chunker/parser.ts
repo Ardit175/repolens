@@ -5,7 +5,16 @@ const require = createRequire(import.meta.url);
 
 /** Names of the grammars shipped by the tree-sitter-wasms package. */
 export type Grammar =
-  'typescript' | 'tsx' | 'javascript' | 'python' | 'c_sharp' | 'java' | 'go' | 'rust' | 'ruby';
+  | 'typescript'
+  | 'tsx'
+  | 'javascript'
+  | 'python'
+  | 'c_sharp'
+  | 'java'
+  | 'go'
+  | 'rust'
+  | 'ruby'
+  | 'php';
 
 let initialised: Promise<void> | undefined;
 const languages = new Map<Grammar, Promise<TsLanguage>>();

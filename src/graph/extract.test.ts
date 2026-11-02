@@ -512,3 +512,60 @@ describe('Ruby edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('PHP edges', () => {
+  it('extracts use (with aliases and groups) and include/require with string targets', async () => {
+    const src = [
+      `<?php`, // 1
+      `use Util\\Helpers;`, // 2
+      `use Util\\Format as Fmt;`, // 3
+      `use Lib\\{Box, Tag as T};`, // 4
+      `require_once 'util/helpers.php';`, // 5
+      `include "a.php";`, // 6
+      `require $path;`, // 7
+    ].join('\n');
+    expect(await edges('a.php', 'php', src)).toEqual([
+      'import Helpers Util\\Helpers@2',
+      'import Fmt Util\\Format@3',
+      'import Box Lib\\Box@4',
+      'import T Lib\\Tag@4',
+      'import util/helpers.php util/helpers.php@5',
+      'import a.php a.php@6',
+    ]);
+  });
+
+  it('attributes calls to methods with the enclosing type and skips noise', async () => {
+    const src = [
+      `<?php`, // 1
+      `namespace App;`, // 2
+      `class Circle {`, // 3
+      `  public function area() {`, // 4
+      `    helper($this->r);`, // 5
+      `    count([]);`, // 6
+      `    $this->scale(2);`, // 7
+      `    Geometry::square(1);`, // 8
+      `    return new \\Lib\\Box();`, // 9
+      `  }`, // 10
+      `}`, // 11
+      `function run($s) {`, // 12
+      `  $s?->area();`, // 13
+      `}`, // 14
+      `setup(1);`, // 15
+    ].join('\n');
+    expect(await edges('a.php', 'php', src)).toEqual([
+      'call helper Circle.area@5',
+      'call scale Circle.area@7',
+      'call square Circle.area@8',
+      'call Box Circle.area@9',
+      'call area run@13',
+      'call setup -@15',
+    ]);
+  });
+
+  it('handles braced namespaces and broken syntax', async () => {
+    const src = `<?php\nnamespace A {\n  function f() { g(); }\n}\n`;
+    expect(await edges('a.php', 'php', src)).toEqual(['call g f@3']);
+    const broken = await extractGraph('a.php', 'php', `<?php use X\nfunction ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});
