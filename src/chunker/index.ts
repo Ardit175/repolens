@@ -6,6 +6,7 @@ import { fallbackChunks } from './fallback.js';
 import { extractGoSymbols } from './go.js';
 import { extractJavaSymbols } from './java.js';
 import { parse, type Grammar } from './parser.js';
+import { extractPhpSymbols } from './php.js';
 import { extractPythonSymbols } from './python.js';
 import { extractRubySymbols } from './ruby.js';
 import { extractRustSymbols } from './rust.js';
@@ -30,6 +31,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   python: { grammar: 'python', extract: extractPythonSymbols },
   rust: { grammar: 'rust', extract: extractRustSymbols },
   ruby: { grammar: 'ruby', extract: extractRubySymbols },
+  php: { grammar: 'php', extract: extractPhpSymbols },
 };
 
 /**

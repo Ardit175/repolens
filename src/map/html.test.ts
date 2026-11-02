@@ -109,7 +109,7 @@ describe('renderMapHtml', () => {
     const html = renderMapHtml(SAMPLE, META);
     expect(html).toMatch(/data-language="typescript" data-color="0"/);
     expect(html).toMatch(/data-language="python" data-color="4"/);
-    expect(html).toMatch(/data-language="unknown" data-color="14"/);
+    expect(html).toMatch(/data-language="unknown" data-color="15"/);
     expect(html).not.toContain('data-language="rust"');
     expect(html.match(/<input type="checkbox"/g)).toHaveLength(3);
   });
@@ -120,7 +120,7 @@ describe('renderMapHtml', () => {
       links: [],
       unresolvedImports: 0,
     } as unknown as MapData;
-    expect(renderMapHtml(data, META)).toContain('data-language="zig" data-color="14"');
+    expect(renderMapHtml(data, META)).toContain('data-language="zig" data-color="15"');
   });
 
   it('labels the controls for keyboard and screen reader users', () => {
