@@ -5,6 +5,7 @@ import type { Language } from '../language.js';
 import { extractCSharpEdges } from './csharp.js';
 import { extractGoEdges } from './go.js';
 import { extractJavaEdges } from './java.js';
+import { extractKotlinEdges } from './kotlin.js';
 import { extractPhpEdges } from './php.js';
 import { extractPythonEdges } from './python.js';
 import { extractRubyEdges } from './ruby.js';
@@ -31,6 +32,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   rust: { grammar: 'rust', extract: extractRustEdges },
   ruby: { grammar: 'ruby', extract: extractRubyEdges },
   php: { grammar: 'php', extract: extractPhpEdges },
+  kotlin: { grammar: 'kotlin', extract: extractKotlinEdges },
 };
 
 /** Extracts imports and calls from a source file. Unsupported languages have no edges. */

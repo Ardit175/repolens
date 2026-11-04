@@ -569,3 +569,56 @@ describe('PHP edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('Kotlin edges', () => {
+  it('extracts imports with aliases and wildcards', async () => {
+    const src = [
+      `package a`, // 1
+      `import util.Helpers`, // 2
+      `import util.Format as Fmt`, // 3
+      `import lib.*`, // 4
+    ].join('\n');
+    expect(await edges('a.kt', 'kotlin', src)).toEqual([
+      'import Helpers util.Helpers@2',
+      'import Fmt util.Format@3',
+      'import * lib@4',
+    ]);
+  });
+
+  it('attributes calls to functions and methods and skips noise', async () => {
+    const src = [
+      `class Circle {`, // 1
+      `  fun area() {`, // 2
+      `    helper(r)`, // 3
+      `    println(listOf(1) to 2)`, // 4
+      `    this.scale(2)`, // 5
+      `    Geometry.square(1)`, // 6
+      `    Box(1).open()`, // 7
+      `  }`, // 8
+      `  companion object {`, // 9
+      `    fun make() = Circle()`, // 10
+      `  }`, // 11
+      `}`, // 12
+      `fun run(s: Shape) {`, // 13
+      `  s.area()`, // 14
+      `  require(true)`, // 15
+      `}`, // 16
+      `setup(1)`, // 17
+    ].join('\n');
+    expect(await edges('a.kt', 'kotlin', src)).toEqual([
+      'call helper Circle.area@3',
+      'call scale Circle.area@5',
+      'call square Circle.area@6',
+      'call open Circle.area@7',
+      'call Box Circle.area@7',
+      'call Circle Companion.make@10',
+      'call area run@14',
+      'call setup -@17',
+    ]);
+  });
+
+  it('handles broken syntax', async () => {
+    const broken = await extractGraph('a.kt', 'kotlin', `import x.\nfun ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});
