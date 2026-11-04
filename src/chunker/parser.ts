@@ -14,7 +14,8 @@ export type Grammar =
   | 'go'
   | 'rust'
   | 'ruby'
-  | 'php';
+  | 'php'
+  | 'kotlin';
 
 let initialised: Promise<void> | undefined;
 const languages = new Map<Grammar, Promise<TsLanguage>>();

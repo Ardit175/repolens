@@ -12,6 +12,7 @@ export type Language =
   | 'rust'
   | 'ruby'
   | 'php'
+  | 'kotlin'
   | 'json'
   | 'markdown'
   | 'yaml'
@@ -34,6 +35,8 @@ const BY_EXTENSION: Record<string, Language> = {
   '.rs': 'rust',
   '.rb': 'ruby',
   '.php': 'php',
+  '.kt': 'kotlin',
+  '.kts': 'kotlin',
   '.json': 'json',
   '.md': 'markdown',
   '.yaml': 'yaml',

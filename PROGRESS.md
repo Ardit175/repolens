@@ -108,3 +108,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Kotlin.
 - Design decision: PHP built-ins like `count` and `array_map` are filtered out of the call edges. They appear in nearly every file, so keeping them would bury the calls to the project's own functions in `find_references` results.
 - LinkedIn: repolens now reads PHP projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-04 M8 Kotlin
+- Built: merged the open release PR (v0.3.0), then added Kotlin chunking (classes, enum classes, interfaces, objects, companion objects, functions, methods, KDoc included) and Kotlin imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Swift or Scala.
+- Design decision: the Kotlin grammar attaches a comment to whichever node ends just before it, so a KDoc block can sit inside the previous import. Instead of trusting `previousSibling`, the chunker maps comment end rows to start rows across the whole tree and walks upward from each declaration.
+- LinkedIn: repolens now reads Kotlin projects too, so an AI assistant can search them and follow who calls what.
