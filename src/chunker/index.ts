@@ -5,6 +5,7 @@ import { extractCSharpSymbols } from './csharp.js';
 import { fallbackChunks } from './fallback.js';
 import { extractGoSymbols } from './go.js';
 import { extractJavaSymbols } from './java.js';
+import { extractKotlinSymbols } from './kotlin.js';
 import { parse, type Grammar } from './parser.js';
 import { extractPhpSymbols } from './php.js';
 import { extractPythonSymbols } from './python.js';
@@ -32,6 +33,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   rust: { grammar: 'rust', extract: extractRustSymbols },
   ruby: { grammar: 'ruby', extract: extractRubySymbols },
   php: { grammar: 'php', extract: extractPhpSymbols },
+  kotlin: { grammar: 'kotlin', extract: extractKotlinSymbols },
 };
 
 /**

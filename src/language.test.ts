@@ -19,6 +19,8 @@ describe('detectLanguage by extension', () => {
     ['lib.rs', 'rust'],
     ['app.rb', 'ruby'],
     ['index.php', 'php'],
+    ['Main.kt', 'kotlin'],
+    ['build.gradle.kts', 'kotlin'],
     ['package.json', 'json'],
     ['README.md', 'markdown'],
     ['ci.yaml', 'yaml'],
