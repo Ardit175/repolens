@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/Ardit175/repolens/compare/repolens-v0.2.0...repolens-v0.3.0) (2026-11-02)
+
+
+### Features
+
+* chunk PHP files by class, interface, trait, enum, method and function ([3677a8c](https://github.com/Ardit175/repolens/commit/3677a8cc23d56e174e0b817e9eb22631f2d4b286))
+* chunk Ruby files by method, singleton method, class and module ([e46a15a](https://github.com/Ardit175/repolens/commit/e46a15a2e438111ff1922adad1d77bd46673c619))
+* extract imports and calls from PHP files into the symbol graph ([9e0ef81](https://github.com/Ardit175/repolens/commit/9e0ef81b15110d59cc69c37505f601a7a136782b))
+* extract require imports and calls from Ruby files into the symbol graph ([8c603dd](https://github.com/Ardit175/repolens/commit/8c603dd8d3fb4b2d6cd9ade1f2bb9a2542e96811))
+* PHP chunking and symbol graph ([eae04ea](https://github.com/Ardit175/repolens/commit/eae04ea558b4ac89d8c9f5620501131be8784338))
+* Ruby chunking and symbol graph ([5683386](https://github.com/Ardit175/repolens/commit/568338604de1639ff03e71e27d0e2dfcd3da6518))
+
 ## [0.2.0](https://github.com/Ardit175/repolens/compare/repolens-v0.1.0...repolens-v0.2.0) (2026-10-31)
 
 
