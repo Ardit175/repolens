@@ -11,6 +11,7 @@ import { extractPhpSymbols } from './php.js';
 import { extractPythonSymbols } from './python.js';
 import { extractRubySymbols } from './ruby.js';
 import { extractRustSymbols } from './rust.js';
+import { extractSwiftSymbols } from './swift.js';
 import type { Chunk, RawSymbol } from './types.js';
 import { extractTypeScriptSymbols } from './typescript.js';
 
@@ -34,6 +35,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   ruby: { grammar: 'ruby', extract: extractRubySymbols },
   php: { grammar: 'php', extract: extractPhpSymbols },
   kotlin: { grammar: 'kotlin', extract: extractKotlinSymbols },
+  swift: { grammar: 'swift', extract: extractSwiftSymbols },
 };
 
 /**

@@ -622,3 +622,76 @@ describe('Kotlin edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('Swift edges', () => {
+  it('extracts every import form', async () => {
+    const src = [
+      `import Foundation`, // 1
+      `import struct Foo.Bar`, // 2
+      `import Foo.Baz`, // 3
+    ].join('\n');
+    expect(await edges('a.swift', 'swift', src)).toEqual([
+      'import Foundation Foundation@1',
+      'import Bar Foo.Bar@2',
+      'import Baz Foo.Baz@3',
+    ]);
+  });
+
+  it('attributes calls to functions, methods and initializers and skips noise', async () => {
+    const src = [
+      `struct Circle {`, // 1
+      `  init(r: Double) {`, // 2
+      `    setup(r)`, // 3
+      `  }`, // 4
+      `  func area() -> Double {`, // 5
+      `    helper(r)`, // 6
+      `    print(max(1, 2))`, // 7
+      `    self.scale(2)`, // 8
+      `    Geometry.square(1)`, // 9
+      `    let d = Double(r)`, // 10
+      `    return Box(side: 1).open()`, // 11
+      `  }`, // 12
+      `}`, // 13
+      `func run(s: Shape) {`, // 14
+      `  s.area()`, // 15
+      `  fatalError("no")`, // 16
+      `}`, // 17
+      `setup(1)`, // 18
+    ].join('\n');
+    expect(await edges('a.swift', 'swift', src)).toEqual([
+      'call setup Circle.init@3',
+      'call helper Circle.area@6',
+      'call scale Circle.area@8',
+      'call square Circle.area@9',
+      'call open Circle.area@11',
+      'call Box Circle.area@11',
+      'call area run@15',
+      'call setup -@18',
+    ]);
+  });
+
+  it('scopes extension members to the extended type', async () => {
+    const src = [
+      `extension Shape: Drawable {`, // 1
+      `  func draw() { render() }`, // 2
+      `}`, // 3
+      `extension Net.Client {`, // 4
+      `  func send() { post() }`, // 5
+      `}`, // 6
+      `protocol P { func f() }`, // 7
+      `enum E { case a; func g() { h() } }`, // 8
+      `actor A { func i() { j() } }`, // 9
+    ].join('\n');
+    expect(await edges('a.swift', 'swift', src)).toEqual([
+      'call render Shape.draw@2',
+      'call post Client.send@5',
+      'call h E.g@8',
+      'call j A.i@9',
+    ]);
+  });
+
+  it('handles broken syntax', async () => {
+    const broken = await extractGraph('a.swift', 'swift', `import\nfunc ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});

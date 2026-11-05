@@ -114,3 +114,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Swift or Scala.
 - Design decision: the Kotlin grammar attaches a comment to whichever node ends just before it, so a KDoc block can sit inside the previous import. Instead of trusting `previousSibling`, the chunker maps comment end rows to start rows across the whole tree and walks upward from each declaration.
 - LinkedIn: repolens now reads Kotlin projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-05 M8 Swift
+- Built: Swift chunking (classes, structs, enums, actors, protocols, extensions, functions, methods, init and deinit, doc comments and attributes included) and Swift imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Scala or C.
+- Design decision: Swift uses one grammar node for class, struct, enum, actor and extension, so the chunker tells them apart by the keyword child. An extension is named after the type it extends, which lets `get_symbol` find methods added in an extension next to the ones in the original type.
+- LinkedIn: repolens now reads Swift projects too, so an AI assistant can search them and follow who calls what.
