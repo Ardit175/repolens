@@ -1,5 +1,6 @@
 import type { Node } from 'web-tree-sitter';
 import type { Language } from '../language.js';
+import { extractCSymbols } from './c.js';
 import { makeChunk } from './chunk.js';
 import { extractCSharpSymbols } from './csharp.js';
 import { fallbackChunks } from './fallback.js';
@@ -36,6 +37,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   php: { grammar: 'php', extract: extractPhpSymbols },
   kotlin: { grammar: 'kotlin', extract: extractKotlinSymbols },
   swift: { grammar: 'swift', extract: extractSwiftSymbols },
+  c: { grammar: 'c', extract: extractCSymbols },
 };
 
 /**

@@ -14,6 +14,7 @@ export type Language =
   | 'php'
   | 'kotlin'
   | 'swift'
+  | 'c'
   | 'json'
   | 'markdown'
   | 'yaml'
@@ -39,6 +40,8 @@ const BY_EXTENSION: Record<string, Language> = {
   '.kt': 'kotlin',
   '.kts': 'kotlin',
   '.swift': 'swift',
+  '.c': 'c',
+  '.h': 'c',
   '.json': 'json',
   '.md': 'markdown',
   '.yaml': 'yaml',
