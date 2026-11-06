@@ -695,3 +695,66 @@ describe('Swift edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('C edges', () => {
+  it('extracts quoted and angle includes with the path as written', async () => {
+    const src = [
+      `#include <stdio.h>`, // 1
+      `#include "shapes.h"`, // 2
+      `#include "util/list.h"`, // 3
+    ].join('\n');
+    expect(await edges('a.c', 'c', src)).toEqual([
+      'import stdio.h stdio.h@1',
+      'import shapes.h shapes.h@2',
+      'import util/list.h util/list.h@3',
+    ]);
+  });
+
+  it('attributes calls to functions and skips libc noise', async () => {
+    const src = [
+      `int area(int r) {`, // 1
+      `  printf("x");`, // 2
+      `  char *p = malloc(4);`, // 3
+      `  free(p);`, // 4
+      `  return square(r);`, // 5
+      `}`, // 6
+      `int *make(void) {`, // 7
+      `  ops->run(1);`, // 8
+      `  (*cb)(2);`, // 9
+      `  return 0;`, // 10
+      `}`, // 11
+      `static int g = init();`, // 12
+    ].join('\n');
+    expect(await edges('a.c', 'c', src)).toEqual([
+      'call square area@5',
+      'call run make@8',
+      'call init -@12',
+    ]);
+  });
+
+  it('visits functions inside #ifdef blocks', async () => {
+    const src = [`#ifdef X`, `void f(void) { g(); }`, `#else`, `void h(void) { i(); }`, `#endif`];
+    expect(await edges('a.c', 'c', src.join('\n'))).toEqual(['call g f@2', 'call i h@4']);
+  });
+
+  it('reads the fixture', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(
+      new URL('../../test/fixtures/c-basic/shapes.c', import.meta.url),
+      'utf8',
+    );
+    expect(await edges('shapes.c', 'c', src)).toEqual([
+      'import stdio.h stdio.h@1',
+      'import shapes.h shapes.h@2',
+      'call square circle_area@24',
+      'call circle_area extra@29',
+      'call circle_area main@35',
+      'call extra main@35',
+    ]);
+  });
+
+  it('handles broken syntax', async () => {
+    const broken = await extractGraph('a.c', 'c', `#include\nint ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});

@@ -120,3 +120,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Scala or C.
 - Design decision: Swift uses one grammar node for class, struct, enum, actor and extension, so the chunker tells them apart by the keyword child. An extension is named after the type it extends, which lets `get_symbol` find methods added in an extension next to the ones in the original type.
 - LinkedIn: repolens now reads Swift projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-06 M8 C
+- Built: merged the open release PR (v0.4.0) after a local full check, then added C chunking (functions, structs, unions, enums, typedef'd types, comments included) and C `#include` imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Scala or C++.
+- Design decision: `typedef struct {...} Name;` has no tag, so the chunker names it after the typedef, the name code actually uses. The `.h` extension maps to C only; guessing C versus C++ from file content would be unreliable, so C++ waits for its own adapter.
+- LinkedIn: repolens now reads C projects too, so an AI assistant can search them and follow who calls what.
