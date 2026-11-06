@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0](https://github.com/Ardit175/repolens/compare/repolens-v0.4.0...repolens-v0.5.0) (2026-11-06)
+
+
+### Features
+
+* add C chunking and symbol graph ([fb6e0e7](https://github.com/Ardit175/repolens/commit/fb6e0e75041b1afcf27b5d9323b632f2af2573a0))
+* detect C files and chunk them by function, struct, union and enum ([ba94c31](https://github.com/Ardit175/repolens/commit/ba94c310dfe189fe07fcb572eaf77a9552602789))
+* extract includes and calls from C files into the symbol graph ([d863ff7](https://github.com/Ardit175/repolens/commit/d863ff771e775d1ecfbc6033a4f49acfc5558158))
+
 ## [0.4.0](https://github.com/Ardit175/repolens/compare/repolens-v0.3.0...repolens-v0.4.0) (2026-11-05)
 
 
