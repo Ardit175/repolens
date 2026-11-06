@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { Node } from 'web-tree-sitter';
 import { parse, type Grammar } from '../chunker/parser.js';
 import type { Language } from '../language.js';
+import { extractCEdges } from './c.js';
 import { extractCSharpEdges } from './csharp.js';
 import { extractGoEdges } from './go.js';
 import { extractJavaEdges } from './java.js';
@@ -35,6 +36,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   php: { grammar: 'php', extract: extractPhpEdges },
   kotlin: { grammar: 'kotlin', extract: extractKotlinEdges },
   swift: { grammar: 'swift', extract: extractSwiftEdges },
+  c: { grammar: 'c', extract: extractCEdges },
 };
 
 /** Extracts imports and calls from a source file. Unsupported languages have no edges. */
