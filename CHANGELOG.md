@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/Ardit175/repolens/compare/repolens-v0.3.0...repolens-v0.4.0) (2026-11-05)
+
+
+### Features
+
+* add Kotlin chunking and symbol graph ([4a815e6](https://github.com/Ardit175/repolens/commit/4a815e6aa631fc9d40e3e7fbf5a2294016e383b9))
+* add Swift chunking and symbol graph ([faf4d00](https://github.com/Ardit175/repolens/commit/faf4d002c86177e1444a6c1063a72bde4bca0431))
+* chunk Kotlin files by class, interface, object, enum, function and method ([e365cef](https://github.com/Ardit175/repolens/commit/e365cef4aeebeaa06244f84718818c4a637eabc3))
+* chunk Swift files and extract their imports and calls into the symbol graph ([d479c3d](https://github.com/Ardit175/repolens/commit/d479c3d8e7b148ca27a9eae02247a43d108f82d2))
+* detect Swift files and register the Swift grammar ([1482d2b](https://github.com/Ardit175/repolens/commit/1482d2bb482c08fde1917b1a1d0dd52fa98831e5))
+* extract imports and calls from Kotlin files into the symbol graph ([3bbe59f](https://github.com/Ardit175/repolens/commit/3bbe59f23bac91568b0c52dc8657a0fcd432db68))
+
 ## [0.3.0](https://github.com/Ardit175/repolens/compare/repolens-v0.2.0...repolens-v0.3.0) (2026-11-02)
 
 
