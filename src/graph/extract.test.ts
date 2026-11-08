@@ -696,6 +696,68 @@ describe('Swift edges', () => {
   });
 });
 
+describe('Scala edges', () => {
+  it('extracts every import form', async () => {
+    const src = [
+      `import scala.collection.mutable`, // 1
+      `import scala.util.{Try, Success => Ok}`, // 2
+      `import java.util._`, // 3
+      `import a.b.{C, _}`, // 4
+    ].join('\n');
+    expect(await edges('a.scala', 'scala', src)).toEqual([
+      'import mutable scala.collection.mutable@1',
+      'import Try scala.util@2',
+      'import Ok scala.util@2',
+      'import * java.util@3',
+      'import C a.b@4',
+      'import * a.b@4',
+    ]);
+  });
+
+  it('attributes calls to methods, functions, traits and constructors and skips noise', async () => {
+    const src = [
+      `class Circle(r: Double) {`, // 1
+      `  def area: Double = {`, // 2
+      `    helper(r)`, // 3
+      `    println(List(1))`, // 4
+      `    this.scale(2)`, // 5
+      `    Geometry.square[Int](1)`, // 6
+      `    new Box(1)`, // 7
+      `    new Lid`, // 8
+      `    r`, // 9
+      `  }`, // 10
+      `}`, // 11
+      `object Main {`, // 12
+      `  val x = setup(1)`, // 13
+      `  def run(s: Shape) = s.area()`, // 14
+      `}`, // 15
+      `trait T { def f = g() }`, // 16
+      `def top() = setup(1)`, // 17
+    ].join('\n');
+    expect(await edges('a.scala', 'scala', src)).toEqual([
+      'call helper Circle.area@3',
+      'call scale Circle.area@5',
+      'call square Circle.area@6',
+      'call Box Circle.area@7',
+      'call Lid Circle.area@8',
+      'call setup -@13',
+      'call area Main.run@14',
+      'call g T@16',
+      'call setup top@17',
+    ]);
+  });
+
+  it('finds calls inside package blocks', async () => {
+    const src = ['package p {', '  object O { def f() = g() }', '}'].join('\n');
+    expect(await edges('a.scala', 'scala', src)).toEqual(['call g O.f@2']);
+  });
+
+  it('handles broken syntax', async () => {
+    const broken = await extractGraph('a.scala', 'scala', `import\ndef ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});
+
 describe('C edges', () => {
   it('extracts quoted and angle includes with the path as written', async () => {
     const src = [

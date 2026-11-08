@@ -126,3 +126,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as Scala or C++.
 - Design decision: `typedef struct {...} Name;` has no tag, so the chunker names it after the typedef, the name code actually uses. The `.h` extension maps to C only; guessing C versus C++ from file content would be unreliable, so C++ waits for its own adapter.
 - LinkedIn: repolens now reads C projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-08 M8 Scala
+- Built: Scala chunking (classes, case classes, traits, objects, package objects, methods, scaladoc included) and Scala imports and calls in the symbol graph, with a fixture and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as C++.
+- Design decision: the bundled Scala grammar cannot parse Scala 3 `enum`, and it turns the broken part into an ERROR node. Guessing line ranges from an ERROR node would produce wrong chunks, so enums are left out and the limit is written down instead of shipping a half version.
+- LinkedIn: repolens now reads Scala projects too, so an AI assistant can search them and follow who calls what.

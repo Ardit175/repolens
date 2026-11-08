@@ -21,6 +21,8 @@ describe('detectLanguage by extension', () => {
     ['index.php', 'php'],
     ['Main.kt', 'kotlin'],
     ['build.gradle.kts', 'kotlin'],
+    ['Main.scala', 'scala'],
+    ['script.sc', 'scala'],
     ['App.swift', 'swift'],
     ['main.c', 'c'],
     ['util.h', 'c'],

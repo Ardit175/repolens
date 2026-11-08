@@ -11,6 +11,7 @@ import { extractPhpEdges } from './php.js';
 import { extractPythonEdges } from './python.js';
 import { extractRubyEdges } from './ruby.js';
 import { extractRustEdges } from './rust.js';
+import { extractScalaEdges } from './scala.js';
 import { extractSwiftEdges } from './swift.js';
 import { extractTypeScriptEdges } from './typescript.js';
 import type { GraphEdge } from './types.js';
@@ -35,6 +36,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   ruby: { grammar: 'ruby', extract: extractRubyEdges },
   php: { grammar: 'php', extract: extractPhpEdges },
   kotlin: { grammar: 'kotlin', extract: extractKotlinEdges },
+  scala: { grammar: 'scala', extract: extractScalaEdges },
   swift: { grammar: 'swift', extract: extractSwiftEdges },
   c: { grammar: 'c', extract: extractCEdges },
 };
