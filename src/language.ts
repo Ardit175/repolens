@@ -13,6 +13,7 @@ export type Language =
   | 'ruby'
   | 'php'
   | 'kotlin'
+  | 'scala'
   | 'swift'
   | 'c'
   | 'json'
@@ -39,6 +40,8 @@ const BY_EXTENSION: Record<string, Language> = {
   '.php': 'php',
   '.kt': 'kotlin',
   '.kts': 'kotlin',
+  '.scala': 'scala',
+  '.sc': 'scala',
   '.swift': 'swift',
   '.c': 'c',
   '.h': 'c',

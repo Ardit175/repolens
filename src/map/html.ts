@@ -24,6 +24,7 @@ const LANGUAGE_ORDER: readonly Language[] = [
   'ruby',
   'php',
   'kotlin',
+  'scala',
   'swift',
   'c',
   'json',

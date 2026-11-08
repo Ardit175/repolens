@@ -16,6 +16,7 @@ export type Grammar =
   | 'ruby'
   | 'php'
   | 'kotlin'
+  | 'scala'
   | 'swift'
   | 'c';
 
