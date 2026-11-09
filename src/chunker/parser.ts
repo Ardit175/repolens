@@ -18,7 +18,8 @@ export type Grammar =
   | 'kotlin'
   | 'scala'
   | 'swift'
-  | 'c';
+  | 'c'
+  | 'cpp';
 
 let initialised: Promise<void> | undefined;
 const languages = new Map<Grammar, Promise<TsLanguage>>();
