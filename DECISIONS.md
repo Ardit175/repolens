@@ -41,6 +41,8 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **C (2026-11-06):** no new dependency; `tree-sitter-c.wasm` ships in `tree-sitter-wasms`. Structs and unions are `class` chunks, enums `enum`; a typedef'd anonymous struct takes the typedef name. `.h` is always C (no C++ yet). An `#include` target is the path as written without quotes or brackets, like PHP `require`. Common libc helpers (`printf`, `malloc`, `strlen`, ...) are not recorded as calls.
 - **Scala (2026-11-08):** no new dependency; `tree-sitter-scala.wasm` ships in `tree-sitter-wasms`. Classes, case classes, objects and package objects are `class` chunks, traits one `interface` chunk; a type chunk stops before its first member, as in Kotlin. Imports are recorded by visible name (`*` for wildcards); `println`, `require` and collection constructors such as `List` and `Some` are not recorded as calls. The bundled grammar predates Scala 3, so `enum` is not chunked.
 
+- **C++ (2026-11-09):** no new dependency; `tree-sitter-cpp.wasm` ships in `tree-sitter-wasms`. `.h` stays C, C++ uses `.cpp .cc .cxx .hpp .hh .hxx`. Methods take their class as parent whether defined in the body or as `Type::method` outside it, so the class chunk stays whole and stops before its first method. A template chunk includes its `template<...>` header. Every `std::` call is skipped as noise, plus a short libc list.
+
 ## Environment variables
 | Name | Used for | Required |
 |---|---|---|
