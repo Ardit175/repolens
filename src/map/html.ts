@@ -27,6 +27,7 @@ const LANGUAGE_ORDER: readonly Language[] = [
   'scala',
   'swift',
   'c',
+  'cpp',
   'json',
   'markdown',
   'yaml',

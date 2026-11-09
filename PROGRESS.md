@@ -132,3 +132,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). After those, another language such as C++.
 - Design decision: the bundled Scala grammar cannot parse Scala 3 `enum`, and it turns the broken part into an ERROR node. Guessing line ranges from an ERROR node would produce wrong chunks, so enums are left out and the limit is written down instead of shipping a half version.
 - LinkedIn: repolens now reads Scala projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-09 M8 C++
+- Built: merged the open release PR (v0.5.0) after a local full check, then added C++ chunking (functions, classes, structs, unions, enums, templates, in-class and out-of-class methods, comments included) and C++ includes and calls in the symbol graph, with fixtures and tests.
+- Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). No unblocked items remain in PLAN.md.
+- Design decision: a method defined outside its class (`Box::get`) is chunked as its own method with the class as parent, instead of being merged into the class chunk. C++ splits declaration and definition across files, so this keeps `get_symbol` pointing at the real body and keeps the class chunk small.
+- LinkedIn: repolens now reads C++ projects too, so an AI assistant can search them and follow who calls what.

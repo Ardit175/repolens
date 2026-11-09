@@ -16,6 +16,7 @@ export type Language =
   | 'scala'
   | 'swift'
   | 'c'
+  | 'cpp'
   | 'json'
   | 'markdown'
   | 'yaml'
@@ -45,6 +46,12 @@ const BY_EXTENSION: Record<string, Language> = {
   '.swift': 'swift',
   '.c': 'c',
   '.h': 'c',
+  '.cpp': 'cpp',
+  '.cc': 'cpp',
+  '.cxx': 'cpp',
+  '.hpp': 'cpp',
+  '.hh': 'cpp',
+  '.hxx': 'cpp',
   '.json': 'json',
   '.md': 'markdown',
   '.yaml': 'yaml',
