@@ -820,3 +820,95 @@ describe('C edges', () => {
     expect(Array.isArray(broken)).toBe(true);
   });
 });
+
+describe('C++ edges', () => {
+  it('extracts quoted and angle includes with the path as written', async () => {
+    const src = [`#include <vector>`, `#include "util/list.hpp"`].join('\n');
+    expect(await edges('a.cpp', 'cpp', src)).toEqual([
+      'import vector vector@1',
+      'import util/list.hpp util/list.hpp@2',
+    ]);
+  });
+
+  it('records plain, member, qualified and new calls and skips noise', async () => {
+    const src = [
+      `void run() {`, // 1
+      `  f();`, // 2
+      `  a.g();`, // 3
+      `  b->h();`, // 4
+      `  ns::k();`, // 5
+      `  auto p = new Widget(1);`, // 6
+      `  std::move(x);`, // 7
+      `  auto u = std::make_unique<Widget>();`, // 8
+      `  printf("x");`, // 9
+      `  tmpl<int>(1);`, // 10
+      `  o.m<int>();`, // 11
+      `  (*fp)();`, // 12
+      `}`, // 13
+      `int v = init();`, // 14
+    ].join('\n');
+    expect(await edges('a.cpp', 'cpp', src)).toEqual([
+      'call f run@2',
+      'call g run@3',
+      'call h run@4',
+      'call k run@5',
+      'call Widget run@6',
+      'call tmpl run@10',
+      'call m run@11',
+      'call init -@14',
+    ]);
+  });
+
+  it('attributes calls to methods with their class as parent', async () => {
+    const src = [
+      `namespace n {`, // 1
+      `class A {`, // 2
+      ` public:`, // 3
+      `  void f() { g(); }`, // 4
+      `  struct In { void i() { j(); } };`, // 5
+      `};`, // 6
+      `}`, // 7
+      `void A::m() { k(); }`, // 8
+      `template <class T> void Box<T>::put() { l(); }`, // 9
+      `extern "C" { void c_api() { z(); } }`, // 10
+      `struct S { int v; } s = make();`, // 11
+      `int* ptr() { return q(); }`, // 12
+    ].join('\n');
+    expect(await edges('a.cpp', 'cpp', src)).toEqual([
+      'call g A.f@4',
+      'call j In.i@5',
+      'call k A.m@8',
+      'call l Box.put@9',
+      'call z c_api@10',
+      'call make -@11',
+      'call q ptr@12',
+    ]);
+  });
+
+  it('visits functions inside #ifdef blocks', async () => {
+    const src = [`#ifdef X`, `void f() { g(); }`, `#endif`].join('\n');
+    expect(await edges('a.cpp', 'cpp', src)).toEqual(['call g f@2']);
+  });
+
+  it('reads the fixture', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(
+      new URL('../../test/fixtures/cpp-basic/shapes.cpp', import.meta.url),
+      'utf8',
+    );
+    expect(await edges('shapes.cpp', 'cpp', src)).toEqual([
+      'import memory memory@1',
+      'import shapes.hpp shapes.hpp@2',
+      'call square Circle.area@21',
+      'call scale Circle.grow@36',
+      'call Circle main@49',
+      'call area main@50',
+      'call make main@51',
+    ]);
+  });
+
+  it('handles broken syntax', async () => {
+    const broken = await extractGraph('a.cpp', 'cpp', `#include\nint ( foo(`);
+    expect(Array.isArray(broken)).toBe(true);
+  });
+});

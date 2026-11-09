@@ -3,6 +3,7 @@ import type { Node } from 'web-tree-sitter';
 import { parse, type Grammar } from '../chunker/parser.js';
 import type { Language } from '../language.js';
 import { extractCEdges } from './c.js';
+import { extractCppEdges } from './cpp.js';
 import { extractCSharpEdges } from './csharp.js';
 import { extractGoEdges } from './go.js';
 import { extractJavaEdges } from './java.js';
@@ -39,6 +40,7 @@ const ADAPTERS: Partial<Record<Language, Adapter>> = {
   scala: { grammar: 'scala', extract: extractScalaEdges },
   swift: { grammar: 'swift', extract: extractSwiftEdges },
   c: { grammar: 'c', extract: extractCEdges },
+  cpp: { grammar: 'cpp', extract: extractCppEdges },
 };
 
 /** Extracts imports and calls from a source file. Unsupported languages have no edges. */
