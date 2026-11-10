@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0](https://github.com/Ardit175/repolens/compare/repolens-v0.5.0...repolens-v0.6.0) (2026-11-09)
+
+
+### Features
+
+* add C++ chunking and symbol graph ([6858d7b](https://github.com/Ardit175/repolens/commit/6858d7b19cb5a933fcbeda9b858ebca8d3384a0f))
+* detect C++ files and chunk them by function, class, enum and method ([6de4933](https://github.com/Ardit175/repolens/commit/6de49332670fed61b8e09cadec624716e1d8bdf2))
+* extract includes and calls from C++ files into the symbol graph ([823d122](https://github.com/Ardit175/repolens/commit/823d12288cf73e67b56fc5efff40742afe822383))
+
 ## [0.5.0](https://github.com/Ardit175/repolens/compare/repolens-v0.4.0...repolens-v0.5.0) (2026-11-08)
 
 
