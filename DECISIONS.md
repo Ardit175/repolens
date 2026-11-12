@@ -42,6 +42,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Scala (2026-11-08):** no new dependency; `tree-sitter-scala.wasm` ships in `tree-sitter-wasms`. Classes, case classes, objects and package objects are `class` chunks, traits one `interface` chunk; a type chunk stops before its first member, as in Kotlin. Imports are recorded by visible name (`*` for wildcards); `println`, `require` and collection constructors such as `List` and `Some` are not recorded as calls. The bundled grammar predates Scala 3, so `enum` is not chunked.
 
 - **C++ (2026-11-09):** no new dependency; `tree-sitter-cpp.wasm` ships in `tree-sitter-wasms`. `.h` stays C, C++ uses `.cpp .cc .cxx .hpp .hh .hxx`. Methods take their class as parent whether defined in the body or as `Type::method` outside it, so the class chunk stays whole and stops before its first method. A template chunk includes its `template<...>` header. Every `std::` call is skipped as noise, plus a short libc list.
+- **Map import resolution (2026-11-12):** no new dependency. Each language gets an `ImportResolver` that maps an import edge to indexed paths by path alone, and returns nothing rather than guess: name-based fallbacks (C includes, Ruby requires, PHP namespaces, JVM class paths) only accept a unique suffix match. Go reads its module path from the indexed `go.mod` chunks, so the map still needs no source checkout. A Go import or JVM wildcard links to every file in the package directory.
 
 ## Environment variables
 | Name | Used for | Required |
