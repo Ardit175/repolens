@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { InMemoryGraphStore } from '../graph/store.js';
 import type { GraphEdge } from '../graph/types.js';
 import { chunkId, InMemoryVectorStore } from '../store/index.js';
-import { buildMapData } from './build.js';
+import { buildMapData, goModulePath } from './build.js';
 
 type Edges = Record<string, Array<[module: string, target?: string]>>;
 
@@ -249,5 +249,64 @@ describe('buildMapData', () => {
       'z.ts>a.ts',
       'z.ts>m.ts',
     ]);
+  });
+
+  it('reads Go modules from indexed go.mod files, including nested ones', async () => {
+    const { store, graph } = await setup({
+      'svc/api/main.go': 1,
+      'svc/api/handlers/h.go': 1,
+      'tools/main.go': 1,
+      'nomodule/go.mod': 1,
+    });
+    const goMod = (path: string, content: string) => {
+      const chunk = {
+        path,
+        language: 'unknown' as const,
+        name: 'go.mod',
+        kind: 'file' as const,
+        startLine: 1,
+        endLine: 3,
+        content,
+        hash: path,
+      };
+      return { id: chunkId(chunk), chunk, vector: [1, 0] };
+    };
+    await store.upsert([
+      goMod('svc/api/go.mod', 'module example.com/api\n\ngo 1.22\n'),
+      goMod('go.mod', '// root\nmodule "example.com/root"\n'),
+    ]);
+    const edge = (path: string, module: string, line: number): GraphEdge => ({
+      path,
+      language: 'go',
+      kind: 'import',
+      target: '*',
+      module,
+      line,
+    });
+    await graph.replaceFile('svc/api/main.go', 'h', [
+      edge('svc/api/main.go', 'example.com/api/handlers', 1),
+      edge('svc/api/main.go', 'example.com/root/tools', 2),
+      edge('svc/api/main.go', 'net/http', 3),
+    ]);
+    const data = await buildMapData(store, graph);
+    expect(data.links).toEqual([
+      { from: 'svc/api/main.go', to: 'svc/api/handlers/h.go', weight: 1 },
+      { from: 'svc/api/main.go', to: 'tools/main.go', weight: 1 },
+    ]);
+    expect(data.unresolvedImports).toBe(1);
+  });
+});
+
+describe('goModulePath', () => {
+  it('reads plain and quoted module lines', () => {
+    expect(goModulePath('module example.com/app\n')).toBe('example.com/app');
+    expect(goModulePath('// comment\n  module "example.com/q" // trailing\n')).toBe(
+      'example.com/q',
+    );
+  });
+
+  it('returns undefined without a module line', () => {
+    expect(goModulePath('go 1.22\n')).toBeUndefined();
+    expect(goModulePath('')).toBeUndefined();
   });
 });
