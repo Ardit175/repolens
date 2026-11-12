@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0](https://github.com/Ardit175/repolens/compare/repolens-v0.6.0...repolens-v0.7.0) (2026-11-12)
+
+
+### Features
+
+* link imports on the map for C/C++, Ruby, PHP, JVM, Go and Rust files ([b584fbc](https://github.com/Ardit175/repolens/commit/b584fbc981cbf7d3edd50c067e59b9ddab30a84c))
+* link imports on the map for nine more languages ([3c82e19](https://github.com/Ardit175/repolens/commit/3c82e199bdeb1f28722acd34b5b79dffbf4c1964))
+* resolve C/C++ includes, Ruby requires and PHP imports to indexed files ([fe0298d](https://github.com/Ardit175/repolens/commit/fe0298d295e0ac5cb306d82b033ef73789adf800))
+* resolve Java, Kotlin, Scala, Go and Rust imports to indexed files ([c80bd21](https://github.com/Ardit175/repolens/commit/c80bd21e1973f9f7dcee02ad316fabae5af8a01f))
+
 ## [0.6.0](https://github.com/Ardit175/repolens/compare/repolens-v0.5.0...repolens-v0.6.0) (2026-11-09)
 
 
