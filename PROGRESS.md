@@ -138,3 +138,9 @@ One entry per scheduled run, newest last.
 - Next: still blocked on Ardit (allow `*.openai.azure.com`, NPM_TOKEN, demo GIF). No unblocked items remain in PLAN.md.
 - Design decision: a method defined outside its class (`Box::get`) is chunked as its own method with the class as parent, instead of being merged into the class chunk. C++ splits declaration and definition across files, so this keeps `get_symbol` pointing at the real body and keeps the class chunk small.
 - LinkedIn: repolens now reads C++ projects too, so an AI assistant can search them and follow who calls what.
+
+## 2026-11-12 M9 Map import resolution
+- Built: `repolens map` now draws import links for C/C++, Ruby, PHP, Java/Kotlin/Scala, Go and Rust, not just TS/JS and Python. Resolution moved into per-language resolvers (`src/map/resolve.ts`, `src/map/resolve-modules.ts`) with unit tests, plus an end-to-end test that indexes a small multi-language repo and checks every link.
+- Next: still blocked on Ardit (allow `*.openai.azure.com` for the smoke test and real-repo benchmark, NPM_TOKEN for publish). The demo GIF can follow once a real embedding provider is reachable, so it shows real search results.
+- Design decision: Go imports are resolved through the module path in `go.mod`, read back from the index, instead of matching the last path segments against folder names. Matching by suffix would link `github.com/x/log` to any local `log` folder by accident; with the module path, standard library and third-party imports simply never match.
+- LinkedIn: The repolens dependency map now links files across eight more languages, so a Go, Rust or Java project shows its real structure instead of a cloud of unconnected dots.
