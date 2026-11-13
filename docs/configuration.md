@@ -20,12 +20,13 @@ The vector index lives in the Qdrant collection `repolens` and the symbol graph 
 | `repolens doctor`                        | Checks Node, Qdrant and the embedding configuration. Exits 1 if a check fails            |
 | `repolens index <path>`                  | Chunks and embeds a directory, re-embedding only changed files and removing deleted ones |
 | `repolens index <path> --dry-run`        | Only walks the directory and counts files per language (no Qdrant, no embeddings)        |
+| `repolens watch <path>`                  | Indexes once, then re-indexes changed files as you edit; `--debounce <ms>` (default 300) |
 | `repolens search "<query>"`              | Semantic search; `-n` result count, `--path` prefix filter, `--language` filter          |
-| `repolens serve`                         | Serves the index over MCP on stdio                                                       |
+| `repolens serve`                         | Serves the index over MCP on stdio; `--watch <path>` indexes and keeps it fresh          |
 | `repolens map`                           | Writes a self-contained HTML dependency map; `-o` output file, `--path` prefix filter    |
 | `repolens bench <path> --queries <file>` | Index time, search latency and recall (see [benchmarks](benchmarks.md))                  |
 
-`index --max-file-size <bytes>` skips larger files (default 1 MiB). The walker respects nested `.gitignore` files and skips binary files.
+`index --max-file-size <bytes>` (also accepted by `watch`) skips larger files (default 1 MiB). The walker respects nested `.gitignore` files and skips binary files.
 
 ## Supported languages
 
