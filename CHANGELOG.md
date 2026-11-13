@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/Ardit175/repolens/compare/repolens-v0.7.0...repolens-v0.8.0) (2026-11-13)
+
+
+### Features
+
+* add debounced watcher that reruns incremental indexing ([3668372](https://github.com/Ardit175/repolens/commit/3668372ae747f9d9924bba278aa900394bcf44f4))
+* add repolens watch and serve --watch commands ([da17075](https://github.com/Ardit175/repolens/commit/da17075f6f466623d7f3757fda225ca2037521d9))
+* add watch mode for indexing and serving ([7b26e1d](https://github.com/Ardit175/repolens/commit/7b26e1d77b8c49a11d5b883370dbc815b601698c))
+
 ## [0.7.0](https://github.com/Ardit175/repolens/compare/repolens-v0.6.0...repolens-v0.7.0) (2026-11-12)
 
 
