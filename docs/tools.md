@@ -15,4 +15,4 @@
 
 - `find_references` and `call_graph` match by name as written at the call site. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together. The output says so.
 - `call_graph` shows at most 25 nodes per level.
-- Tools read what was indexed, not the files on disk. Re-run `repolens index` after code changes.
+- Tools read what was indexed, not the files on disk. Re-run `repolens index` after code changes, or start the server with `repolens serve --watch <path>` to re-index automatically.

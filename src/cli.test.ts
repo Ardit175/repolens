@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProgram, main, type Deps } from './cli.js';
 import { InMemoryGraphStore } from './graph/store.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
+import type { WatchOptions, Watcher } from './watch.js';
 
 let dir: string;
 let out: string;
@@ -139,6 +140,24 @@ describe('repolens program', () => {
 describe('repolens index, search and doctor with a store', () => {
   const served: string[] = [];
   const serve = async (_runtime: Runtime, version: string) => void served.push(version);
+  const watchCalls: WatchOptions[] = [];
+  const watcherClosed = { count: 0 };
+  const watch = (options: WatchOptions): Watcher => {
+    watchCalls.push(options);
+    return {
+      idle: async () => {},
+      close: async () => void watcherClosed.count++,
+    };
+  };
+  const sigintListeners = process.listeners('SIGINT');
+  afterEach(() => {
+    watchCalls.length = 0;
+    watcherClosed.count = 0;
+    for (const l of process.listeners('SIGINT')) {
+      if (!sigintListeners.includes(l)) process.removeListener('SIGINT', l);
+    }
+    vi.restoreAllMocks();
+  });
   const memory = () => {
     const store = new InMemoryVectorStore();
     const embeddings = new FakeEmbeddingProvider();
@@ -150,6 +169,7 @@ describe('repolens index, search and doctor with a store', () => {
         createRuntime: () => ({ store, graph, embeddings }),
         createEmbeddings: () => embeddings,
         serve,
+        watch,
       },
     };
   };
@@ -255,6 +275,7 @@ describe('repolens index, search and doctor with a store', () => {
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
+      watch,
     };
     await runWith(failing, 'map');
     expect(err).toContain('QDRANT_URL is not set.');
@@ -274,10 +295,130 @@ describe('repolens index, search and doctor with a store', () => {
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
+      watch,
     };
     await runWith(failing, 'serve');
     expect(err).toContain('QDRANT_URL is not set.');
     expect(process.exitCode).toBe(1);
+  });
+
+  it('watch indexes once, announces watching and starts the watcher', async () => {
+    const { deps, store } = memory();
+    write('a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(deps, 'watch', dir);
+    expect(out).toContain('Changed: 1 (1 chunks embedded)');
+    expect(out).toContain(`Watching ${dir} for changes (Ctrl+C to stop)\n`);
+    expect(await store.count()).toBe(1);
+    expect(watchCalls).toHaveLength(1);
+    expect(watchCalls[0]!.root).toBe(dir);
+    expect(watchCalls[0]!.debounceMs).toBe(300);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('watch passes --debounce and --max-file-size through', async () => {
+    const { deps, store } = memory();
+    write('big.ts', `export function big() { return '${'x'.repeat(200)}'; }\n`);
+    await runWith(deps, 'watch', dir, '--debounce', '50', '--max-file-size', '100');
+    expect(watchCalls[0]!.debounceMs).toBe(50);
+    expect(await store.count()).toBe(0);
+    await watchCalls[0]!.reindex();
+    expect(await store.count()).toBe(0);
+  });
+
+  it('watch rejects an invalid --debounce', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'watch', dir, '--debounce', '0').catch(() => undefined);
+    expect(err).toContain('must be a positive integer');
+    expect(watchCalls).toHaveLength(0);
+  });
+
+  it('watch prints a line for passes that changed something', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'watch', dir);
+    out = '';
+    const { onIndexed, reindex } = watchCalls[0]!;
+    const stats = await reindex();
+    onIndexed?.(stats, ['a.ts']);
+    expect(out).toBe('');
+    onIndexed?.({ ...stats, filesChanged: 2, filesRemoved: 1, chunksEmbedded: 5 }, [
+      'a.ts',
+      'b.ts',
+    ]);
+    expect(out).toBe('Re-indexed: 2 changed, 1 removed, 5 chunks embedded (a.ts, b.ts)\n');
+    out = '';
+    onIndexed?.({ ...stats, filesChanged: 1, chunksEmbedded: 1 }, ['a', 'b', 'c', 'd', 'e']);
+    expect(out).toBe('Re-indexed: 1 changed, 0 removed, 1 chunks embedded (a, b, c, +2 more)\n');
+    out = '';
+    onIndexed?.({ ...stats, graphFilesUpdated: 1 }, []);
+    expect(out).toBe('Re-indexed: 0 changed, 0 removed, 0 chunks embedded\n');
+  });
+
+  it('watch reports pass errors without failing or stopping', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'watch', dir);
+    watchCalls[0]!.onError?.(new Error('embedding failed'));
+    watchCalls[0]!.onError?.('plain');
+    expect(err).toBe('error: embedding failed\nerror: plain\n');
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('watch fails when the initial pass fails and does not start watching', async () => {
+    const { deps, store } = memory();
+    vi.spyOn(store, 'ensureCollection').mockRejectedValue(new Error('qdrant down'));
+    await runWith(deps, 'watch', dir);
+    expect(err).toContain('error: qdrant down');
+    expect(process.exitCode).toBe(1);
+    expect(watchCalls).toHaveLength(0);
+  });
+
+  it('watch and serve --watch reject a path that is not a directory', async () => {
+    const { deps } = memory();
+    write('file.txt');
+    const file = path.join(dir, 'file.txt');
+    await runWith(deps, 'watch', file);
+    expect(err).toBe(`error: ${file} is not a directory\n`);
+    expect(process.exitCode).toBe(1);
+    err = '';
+    served.length = 0;
+    const missing = path.join(dir, 'nope');
+    await runWith(deps, 'serve', '--watch', missing);
+    expect(err).toBe(`error: ${missing} is not a directory\n`);
+    expect(watchCalls).toHaveLength(0);
+    expect(served).toHaveLength(0);
+  });
+
+  it('Ctrl+C closes the watcher and exits', async () => {
+    const { deps } = memory();
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    await runWith(deps, 'watch', dir);
+    process.emit('SIGINT');
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(watcherClosed.count).toBe(1);
+  });
+
+  it('serve --watch indexes first, logs to stderr only, then serves', async () => {
+    const { deps, store } = memory();
+    served.length = 0;
+    write('a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(deps, 'serve', '--watch', dir);
+    expect(out).toBe('');
+    expect(err).toContain('Changed: 1 (1 chunks embedded)');
+    expect(err).toContain(`Watching ${dir} for changes`);
+    expect(await store.count()).toBe(1);
+    expect(watchCalls).toHaveLength(1);
+    expect(served).toHaveLength(1);
+    watchCalls[0]!.onIndexed?.(
+      { ...(await watchCalls[0]!.reindex()), filesChanged: 1, chunksEmbedded: 1 },
+      ['a.ts'],
+    );
+    expect(out).toBe('');
+    expect(err).toContain('Re-indexed: 1 changed');
+  });
+
+  it('serve without --watch does not start a watcher', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'serve');
+    expect(watchCalls).toHaveLength(0);
   });
 
   it('bench indexes into memory and prints a markdown result', async () => {

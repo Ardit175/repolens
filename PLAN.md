@@ -90,3 +90,6 @@ Answer:
 
 ### M9 Map coverage
 - [x] Link imports on the map for C/C++ (`#include` relative, root, unique suffix), Ruby (`require`/`require_relative`), PHP (`use` PSR-4 style and `require`), Java/Kotlin/Scala (class paths under any source root, static imports, wildcard packages), Go (packages of modules declared in indexed `go.mod` files) and Rust (`crate::`, `self::`, `super::` paths to module files). Kotlin top-level function imports, C# namespaces and Swift modules stay unresolved because the file cannot be found from the name
+
+### M10 Developer workflow
+- [x] Watch mode: `repolens watch <path>` and `repolens serve --watch <path>` rerun the incremental index pass after file changes (debounced, never two passes at once, `.git` ignored), so the MCP tools answer from current code while you edit

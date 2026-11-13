@@ -24,10 +24,12 @@ export QDRANT_URL=http://localhost:6333   # see .env.example for all variables
 npm run dev -- doctor                     # checks Node, Qdrant and the embedding provider
 npm run dev -- index <path>               # embeds changed files only; safe to re-run
 npm run dev -- search "where do we open the database?" --language typescript --path src/ -n 5
+npm run dev -- watch <path>               # index once, then re-index changed files while you edit
 npm run dev -- map -o repolens-map.html   # interactive dependency map, open it in a browser
 ```
 
 - `index` re-embeds only files whose chunks changed and removes files that were deleted. `--dry-run` just summarises files by language without Qdrant or embeddings.
+- `watch` runs the same incremental pass once, then reruns it a short moment after files change (`--debounce <ms>`, default 300). Changes inside `.git` are ignored, and a failed pass prints an error and keeps watching. Stop it with Ctrl+C.
 - Embeddings use Azure OpenAI when `AZURE_OPENAI_*` is set, otherwise a local model that needs no key (the first run downloads it). Force one with `REPOLENS_EMBEDDINGS=azure|local`.
 
 - `map` writes one self-contained HTML file (no network needed to view it) with a zoomable graph of files and their imports. Search by path, filter by language, click a file to see what it imports and what imports it. `--path src/` limits it to a directory. Imports are linked by path for TS/JS, Python, C/C++ (`#include`), Ruby (`require`), PHP (`use` and `require`), Java/Kotlin/Scala (class paths under any source root), Go (packages of modules declared in an indexed `go.mod`) and Rust (`crate::`, `self::` and `super::` paths). Third-party packages, standard libraries, C# namespaces and Swift modules are counted as unresolved, not drawn.
@@ -36,7 +38,7 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 ## Use with an MCP client
 
-`repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`.
+`repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`. Add `--watch <path>` (for example `repolens serve --watch .`) to index that directory first and keep the index fresh while the server runs. Progress goes to stderr so the MCP stream on stdout stays clean.
 
 | Tool              | What it does                                                                                                               |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |

@@ -6,6 +6,7 @@ import {
   readFileSync,
   readSync,
   realpathSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -23,6 +24,7 @@ import { createRuntime, type Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex } from './search.js';
 import { walkFiles } from './walker.js';
+import { watchRepository, type WatchOptions, type Watcher } from './watch.js';
 
 export interface Io {
   out: (s: string) => void;
@@ -38,12 +40,14 @@ export interface Deps {
   createRuntime: () => Runtime;
   createEmbeddings: () => EmbeddingProvider;
   serve: (runtime: Runtime, version: string) => Promise<void>;
+  watch: (options: WatchOptions) => Watcher;
 }
 
 const defaultDeps: Deps = {
   createRuntime: () => createRuntime(),
   createEmbeddings: () => createEmbeddingProvider(),
   serve: serveStdio,
+  watch: watchRepository,
 };
 
 const SHEBANG_PROBE_BYTES = 256;
@@ -120,6 +124,66 @@ function formatIndexStats(stats: IndexStats): string {
   return lines.join('\n') + '\n';
 }
 
+function assertDirectory(target: string): void {
+  let isDirectory: boolean;
+  try {
+    isDirectory = statSync(target).isDirectory();
+  } catch {
+    isDirectory = false;
+  }
+  if (!isDirectory) throw new Error(`${target} is not a directory`);
+}
+
+function formatReindexed(stats: IndexStats, paths: string[]): string {
+  const shown = paths.slice(0, 3).join(', ');
+  const more = paths.length > 3 ? `, +${paths.length - 3} more` : '';
+  const detail = paths.length > 0 ? ` (${shown}${more})` : '';
+  return `Re-indexed: ${stats.filesChanged} changed, ${stats.filesRemoved} removed, ${stats.chunksEmbedded} chunks embedded${detail}\n`;
+}
+
+interface WatchSession {
+  target: string;
+  runtime: Runtime;
+  maxFileSize?: number;
+  debounceMs?: number;
+  /** Where progress and errors go. `serve` needs this to be stderr. */
+  log: (s: string) => void;
+  logError: (s: string) => void;
+}
+
+/**
+ * Runs one index pass, then keeps the index fresh with a watcher until Ctrl+C.
+ * Resolves once the watcher is started; the fs watcher keeps the process alive.
+ */
+async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
+  const { target, runtime, log, logError } = session;
+  const reindex = () =>
+    indexRepository({
+      root: target,
+      store: runtime.store,
+      graph: runtime.graph,
+      embeddings: runtime.embeddings,
+      ...(session.maxFileSize === undefined ? {} : { maxFileSize: session.maxFileSize }),
+    });
+  log(formatIndexStats(await reindex()));
+  log(`Watching ${target} for changes (Ctrl+C to stop)\n`);
+  const watcher = deps.watch({
+    root: target,
+    reindex,
+    ...(session.debounceMs === undefined ? {} : { debounceMs: session.debounceMs }),
+    onIndexed: (stats, paths) => {
+      if (stats.filesChanged + stats.filesRemoved + stats.graphFilesUpdated > 0) {
+        log(formatReindexed(stats, paths));
+      }
+    },
+    onError: (error) =>
+      logError(`error: ${error instanceof Error ? error.message : String(error)}\n`),
+  });
+  process.once('SIGINT', () => {
+    void watcher.close().finally(() => process.exit(0));
+  });
+}
+
 function fail(io: Io, error: unknown): void {
   io.err(`error: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
@@ -188,11 +252,51 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
     });
 
   program
+    .command('watch')
+    .description('Index a directory, then re-index changed files while you edit')
+    .argument('<path>', 'directory to watch')
+    .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
+    .option(
+      '--debounce <ms>',
+      'quiet period after the last change before re-indexing',
+      parsePositiveInt,
+      300,
+    )
+    .action(async (target: string, options: { maxFileSize?: number; debounce: number }) => {
+      try {
+        assertDirectory(target);
+        await indexAndWatch(
+          {
+            target,
+            runtime: deps.createRuntime(),
+            debounceMs: options.debounce,
+            log: io.out,
+            logError: io.err,
+            ...(options.maxFileSize === undefined ? {} : { maxFileSize: options.maxFileSize }),
+          },
+          deps,
+        );
+      } catch (error) {
+        fail(io, error);
+      }
+    });
+
+  program
     .command('serve')
     .description('Serve the index to an MCP client over stdio (search_code, get_symbol, ...)')
-    .action(async () => {
+    .option('--watch <path>', 'index this directory first and keep the index fresh while serving')
+    .action(async (options: { watch?: string }) => {
       try {
-        await deps.serve(deps.createRuntime(), readVersion());
+        const runtime = deps.createRuntime();
+        if (options.watch !== undefined) {
+          assertDirectory(options.watch);
+          // stdout carries the MCP protocol, so all watch output goes to stderr.
+          await indexAndWatch(
+            { target: options.watch, runtime, log: io.err, logError: io.err },
+            deps,
+          );
+        }
+        await deps.serve(runtime, readVersion());
       } catch (error) {
         fail(io, error);
       }
