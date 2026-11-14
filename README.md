@@ -28,6 +28,7 @@ npm run dev -- watch <path>               # index once, then re-index changed fi
 npm run dev -- map -o repolens-map.html   # interactive dependency map, open it in a browser
 ```
 
+- `search` is hybrid by default: code-like words in the query (`parseConfig`, `load_settings`, `AuthService.login`, or a single word such as `login`) are looked up by exact symbol name and those chunks come first, then the closest chunks by meaning. Results found by name say `name match`. `--semantic` turns the name lookup off.
 - `index` re-embeds only files whose chunks changed and removes files that were deleted. `--dry-run` just summarises files by language without Qdrant or embeddings.
 - `watch` runs the same incremental pass once, then reruns it a short moment after files change (`--debounce <ms>`, default 300). Changes inside `.git` are ignored, and a failed pass prints an error and keeps watching. Stop it with Ctrl+C.
 - Embeddings use Azure OpenAI when `AZURE_OPENAI_*` is set, otherwise a local model that needs no key (the first run downloads it). Force one with `REPOLENS_EMBEDDINGS=azure|local`.
@@ -42,7 +43,7 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 | Tool              | What it does                                                                                                               |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `search_code`     | Semantic search; arguments `query`, optional `limit` (1-20), `path`, `language`                                            |
+| `search_code`     | Hybrid search; arguments `query`, optional `limit` (1-20), `path`, `language`, `mode` (`hybrid` or `semantic`)             |
 | `get_symbol`      | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path`                       |
 | `list_files`      | Indexed files, optionally under a `path` prefix, with a `limit`                                                            |
 | `file_context`    | One file as an outline of its symbols followed by their code                                                               |
