@@ -35,12 +35,18 @@ export function createServer(runtime: Runtime, version: string): McpServer {
     'search_code',
     {
       description:
-        'Semantic search over the indexed codebase. Returns the closest functions, methods and classes with their code.',
+        'Search the indexed codebase. Identifiers in the query (for example parseConfig or AuthService.login) are matched against symbol names first, then the closest functions, methods and classes by meaning follow, each with its code.',
       inputSchema: {
         query: z.string().min(1).describe('What to look for, in plain language'),
         limit: z.number().int().min(1).max(MAX_SEARCH_RESULTS).optional().describe('Result count'),
         path: z.string().optional().describe('Only files under this directory, e.g. "src/"'),
         language: z.string().optional().describe('Only this language, e.g. "typescript"'),
+        mode: z
+          .enum(['hybrid', 'semantic'])
+          .optional()
+          .describe(
+            'hybrid (default) ranks exact symbol-name matches first; semantic uses vector similarity only',
+          ),
       },
       annotations: { readOnlyHint: true },
     },

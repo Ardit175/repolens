@@ -69,6 +69,7 @@ describe('runBenchmark', () => {
       now: () => (tick += 10),
     });
     expect(result.provider).toBe('fake');
+    expect(result.mode).toBe('hybrid');
     expect(result.files).toBe(2);
     expect(result.chunks).toBe(2);
     expect(result.indexMs).toBe(10);
@@ -90,6 +91,21 @@ describe('runBenchmark', () => {
     expect(result.mrr).toBe(0.5);
   });
 
+  it('records the search mode and passes it to the search', async () => {
+    const run = (mode?: 'hybrid' | 'semantic') =>
+      runBenchmark({
+        root: dir,
+        store: new InMemoryVectorStore(),
+        embeddings: new FakeEmbeddingProvider(),
+        queries: [{ query: 'loginUser', expect: ['src/auth.ts'] }],
+        limit: 1,
+        ...(mode === undefined ? {} : { mode }),
+      });
+    expect((await run('semantic')).mode).toBe('semantic');
+    expect((await run('hybrid')).mode).toBe('hybrid');
+    expect((await run()).mode).toBe('hybrid');
+  });
+
   it('rejects an empty query list', async () => {
     await expect(
       runBenchmark({
@@ -106,6 +122,7 @@ describe('runBenchmark', () => {
 describe('formatBenchmark', () => {
   const base = {
     provider: 'azure',
+    mode: 'semantic' as const,
     files: 120,
     chunks: 900,
     indexMs: 12_340,
@@ -121,6 +138,7 @@ describe('formatBenchmark', () => {
   it('renders a markdown table', () => {
     const text = formatBenchmark(base, 'express @ abc123');
     expect(text).toContain('### express @ abc123');
+    expect(text).toContain('| Embedding provider | azure |\n| Search mode | semantic |');
     expect(text).toContain('| Index time | 12.3 s |');
     expect(text).toContain('| Search latency p50 / p95 | 41 ms / 89 ms |');
     expect(text).toContain('| Recall@5 (10 queries) | 80% |');

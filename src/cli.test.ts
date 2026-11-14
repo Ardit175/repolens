@@ -208,6 +208,21 @@ describe('repolens index, search and doctor with a store', () => {
     expect(out).not.toContain('lib/util.py');
   });
 
+  it('search boosts exact names unless --semantic is given', async () => {
+    const { deps } = memory();
+    write('src/noisy.ts', "export function noisy() { return 'run run run run'; }\n");
+    write('src/target.ts', 'export function run() { return compute(one, two, three); }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'search', 'run', '-n', '1');
+    expect(out).toContain('src/target.ts');
+    expect(out).toContain('name match');
+    out = '';
+    await runWith(deps, 'search', 'run', '-n', '1', '--semantic');
+    expect(out).toContain('src/noisy.ts');
+    expect(out).not.toContain('name match');
+  });
+
   it('prints a clear error when no store is configured', async () => {
     const saved = process.env.QDRANT_URL;
     delete process.env.QDRANT_URL;
@@ -436,6 +451,7 @@ describe('repolens index, search and doctor with a store', () => {
     );
     expect(out).toContain('### demo');
     expect(out).toContain('| Recall@5 (1 queries) | 100% |');
+    expect(out).toContain('| Search mode | hybrid |');
     expect(await store.count()).toBe(0);
   });
 
@@ -445,6 +461,20 @@ describe('repolens index, search and doctor with a store', () => {
     write('queries.json', '[{"query":"loginUser","expect":["src/auth.ts"]}]');
     await runWith(deps, 'bench', dir, '--queries', path.join(dir, 'queries.json'), '--qdrant');
     expect(await store.count()).toBeGreaterThan(0);
+  });
+
+  it('bench --mode semantic is shown in the output and other modes are rejected', async () => {
+    const { deps } = memory();
+    write('src/auth.ts', 'export function loginUser(password: string) { return password; }\n');
+    write('queries.json', '[{"query":"loginUser","expect":["src/auth.ts"]}]');
+    const queries = path.join(dir, 'queries.json');
+    await runWith(deps, 'bench', dir, '--queries', queries, '--mode', 'semantic');
+    expect(out).toContain('| Search mode | semantic |');
+    out = '';
+    await run('bench', dir, '--queries', queries, '--mode', 'bogus');
+    expect(err).toContain('must be "hybrid" or "semantic"');
+    expect(out).toBe('');
+    expect(process.exitCode).toBe(1);
   });
 
   it('bench reports an invalid queries file', async () => {

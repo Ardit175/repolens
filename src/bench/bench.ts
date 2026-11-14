@@ -1,6 +1,6 @@
 import { indexRepository } from '../indexer.js';
 import type { EmbeddingProvider } from '../embeddings/index.js';
-import { searchIndex } from '../search.js';
+import { searchIndex, type SearchMode } from '../search.js';
 import type { VectorStore } from '../store/index.js';
 
 /** One benchmark question: a query and the files that a good answer should come from. */
@@ -12,6 +12,7 @@ export interface BenchQuery {
 
 export interface BenchResult {
   provider: string;
+  mode: SearchMode;
   files: number;
   chunks: number;
   indexMs: number;
@@ -33,6 +34,8 @@ export interface BenchOptions {
   embeddings: EmbeddingProvider;
   queries: BenchQuery[];
   limit: number;
+  /** Defaults to hybrid. */
+  mode?: SearchMode;
   /** Millisecond clock, injectable for tests. */
   now?: () => number;
 }
@@ -78,6 +81,7 @@ export function percentile(values: number[], p: number): number {
 /** Indexes `root` into `store`, then runs every query and measures time and ranking quality. */
 export async function runBenchmark(options: BenchOptions): Promise<BenchResult> {
   const { root, store, embeddings, queries, limit } = options;
+  const mode = options.mode ?? 'hybrid';
   const now = options.now ?? (() => performance.now());
   if (queries.length === 0) throw new Error('No queries to run');
 
@@ -91,7 +95,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchResult> 
   let reciprocalRanks = 0;
   for (const { query, expect } of queries) {
     const start = now();
-    const hits = await searchIndex({ store, embeddings, query, limit });
+    const hits = await searchIndex({ store, embeddings, query, limit, mode });
     latencies.push(now() - start);
     const rank = hits.findIndex((hit) => expect.includes(hit.chunk.path));
     if (rank === -1) {
@@ -104,6 +108,7 @@ export async function runBenchmark(options: BenchOptions): Promise<BenchResult> 
 
   return {
     provider: embeddings.name,
+    mode,
     files: stats.filesScanned,
     chunks: await store.count(),
     indexMs,
@@ -125,6 +130,7 @@ export function formatBenchmark(result: BenchResult, label: string): string {
     '| Metric | Value |',
     '| --- | --- |',
     `| Embedding provider | ${result.provider} |`,
+    `| Search mode | ${result.mode} |`,
     `| Files scanned | ${result.files} |`,
     `| Chunks indexed | ${result.chunks} |`,
     `| Index time | ${(result.indexMs / 1000).toFixed(1)} s |`,
