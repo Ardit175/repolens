@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.0](https://github.com/Ardit175/repolens/compare/repolens-v0.8.0...repolens-v0.9.0) (2026-11-14)
+
+
+### Features
+
+* add search mode to the CLI, the search_code tool and the benchmark ([7107bd5](https://github.com/Ardit175/repolens/commit/7107bd50536829a7ec52709af3318bfb96ca2561))
+* hybrid search that ranks exact symbol names first ([06cc55a](https://github.com/Ardit175/repolens/commit/06cc55a7fffe3c7fe15cda244e28de96f45a351d))
+* rank exact symbol-name matches ahead of semantic hits in search ([1363b6b](https://github.com/Ardit175/repolens/commit/1363b6bcd27c9a1d7faeea2deed9e2296c82b2f0))
+
 ## [0.8.0](https://github.com/Ardit175/repolens/compare/repolens-v0.7.0...repolens-v0.8.0) (2026-11-13)
 
 
