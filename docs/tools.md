@@ -4,7 +4,7 @@
 
 | Tool              | Arguments                                                                       | Returns                                                                  |
 | ----------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `search_code`     | `query`; optional `limit` (1-20, default 5), `path`, `language`                 | Closest chunks with location, symbol, score and a code preview           |
+| `search_code`     | `query`; optional `limit` (1-20, default 5), `path`, `language`, `mode`         | Closest chunks with location, symbol, score and a code preview           |
 | `get_symbol`      | `name` (`Class.method` works); optional `path`                                  | Full code of each matching function, method, class or type               |
 | `list_files`      | optional `path` prefix, `limit` (default 200, max 1000)                         | Indexed files                                                            |
 | `file_context`    | `path`                                                                          | An outline of the file's symbols, then their code                        |
@@ -12,6 +12,8 @@
 | `call_graph`      | `name`; optional `direction` (`callers` or `callees`), `depth` (1-5, default 2) | An indented tree of callers or callees, with a cycle guard               |
 
 ## Limits
+
+- `search_code` is hybrid by default: identifiers in the query (camelCase, snake_case, `Class.method`, or a one-word query) are matched against symbol names exactly and ranked first, then the semantic hits follow. Pass `mode: "semantic"` for vector similarity only. A name-only hit has no score and is marked `name match`.
 
 - `find_references` and `call_graph` match by name as written at the call site. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together. The output says so.
 - `call_graph` shows at most 25 nodes per level.

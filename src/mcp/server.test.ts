@@ -49,6 +49,17 @@ describe('repolens MCP server', () => {
     expect(text).toContain('src/db.ts');
   });
 
+  it('search_code puts a named symbol first and supports mode semantic', async () => {
+    const hybrid = await call('search_code', { query: 'AuthService.login', limit: 1 });
+    expect(hybrid.isError).toBe(false);
+    expect(hybrid.text.split('\n')[0]).toMatch(/AuthService\.login .*name match$/);
+    const semantic = await call('search_code', { query: 'login', limit: 1, mode: 'semantic' });
+    expect(semantic.isError).toBe(false);
+    expect(semantic.text).not.toContain('name match');
+    const bad = await call('search_code', { query: 'login', mode: 'bogus' });
+    expect(bad.isError).toBe(true);
+  });
+
   it('get_symbol returns code for a known symbol and an error result for an unknown one', async () => {
     const found = await call('get_symbol', { name: 'AuthService.login' });
     expect(found.isError).toBe(false);

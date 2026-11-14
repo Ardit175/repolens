@@ -20,6 +20,8 @@ repolens bench ./some-repo --queries queries.json -n 5 --label "some-repo @ <com
 ]
 ```
 
+`--mode semantic` measures pure vector search; the default `hybrid` also ranks exact symbol-name matches first, so running both on the same queries shows what the name lookup adds.
+
 Without `--qdrant` nothing touches your Qdrant index, and the embedding provider comes from `REPOLENS_EMBEDDINGS` as usual. With `--qdrant` the run uses (and writes to) the configured collection, which also measures Qdrant latency.
 
 Numbers depend on the embedding provider, so always record which one was used.

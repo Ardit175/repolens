@@ -22,7 +22,7 @@ import { renderMapHtml } from './map/html.js';
 import { serveStdio } from './mcp/server.js';
 import { createRuntime, type Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
-import { formatHits, searchIndex } from './search.js';
+import { formatHits, searchIndex, type SearchMode } from './search.js';
 import { walkFiles } from './walker.js';
 import { watchRepository, type WatchOptions, type Watcher } from './watch.js';
 
@@ -63,6 +63,13 @@ function parsePositiveInt(value: string): number {
     throw new InvalidArgumentError('must be a positive integer.');
   }
   return Number(value);
+}
+
+function parseSearchMode(value: string): SearchMode {
+  if (value !== 'hybrid' && value !== 'semantic') {
+    throw new InvalidArgumentError('must be "hybrid" or "semantic".');
+  }
+  return value;
 }
 
 /** Reads only the start of a file and returns its first line. */
@@ -237,19 +244,33 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
     .option('-n, --limit <count>', 'number of results', parsePositiveInt, 5)
     .option('--path <prefix>', 'only files under this directory, e.g. src/')
     .option('--language <name>', 'only this language, e.g. typescript')
-    .action(async (query: string, options: { limit: number; path?: string; language?: string }) => {
-      try {
-        const { store, embeddings } = deps.createRuntime();
-        const filter = {
-          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
-          ...(options.language === undefined ? {} : { language: options.language }),
-        };
-        const hits = await searchIndex({ store, embeddings, query, limit: options.limit, filter });
-        io.out(formatHits(hits));
-      } catch (error) {
-        fail(io, error);
-      }
-    });
+    .option('--semantic', 'vector similarity only, without boosting exact symbol names')
+    .action(
+      async (
+        query: string,
+        options: { limit: number; path?: string; language?: string; semantic?: boolean },
+      ) => {
+        try {
+          const { store, embeddings } = deps.createRuntime();
+          const filter = {
+            ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+            ...(options.language === undefined ? {} : { language: options.language }),
+          };
+          const mode: SearchMode = options.semantic ? 'semantic' : 'hybrid';
+          const hits = await searchIndex({
+            store,
+            embeddings,
+            query,
+            limit: options.limit,
+            filter,
+            mode,
+          });
+          io.out(formatHits(hits));
+        } catch (error) {
+          fail(io, error);
+        }
+      },
+    );
 
   program
     .command('watch')
@@ -337,12 +358,19 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
     .argument('<path>', 'directory to index')
     .requiredOption('--queries <file>', 'JSON file: [{ "query": "...", "expect": ["src/a.ts"] }]')
     .option('-n, --limit <count>', 'top results that count for recall', parsePositiveInt, 5)
+    .option('--mode <mode>', 'search mode: hybrid or semantic', parseSearchMode, 'hybrid')
     .option('--label <text>', 'heading for the markdown result', 'benchmark')
     .option('--qdrant', 'use the Qdrant collection from QDRANT_URL instead of an in-memory store')
     .action(
       async (
         target: string,
-        options: { queries: string; limit: number; label: string; qdrant?: boolean },
+        options: {
+          queries: string;
+          limit: number;
+          mode: SearchMode;
+          label: string;
+          qdrant?: boolean;
+        },
       ) => {
         try {
           const queries = parseQueries(readFileSync(options.queries, 'utf8'));
@@ -355,6 +383,7 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
             embeddings,
             queries,
             limit: options.limit,
+            mode: options.mode,
           });
           io.out(formatBenchmark(result, options.label));
         } catch (error) {
