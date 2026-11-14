@@ -37,6 +37,19 @@ describe('searchCode', () => {
     expect(await searchCode(runtime, { query: 'database', path: 'nope/' })).toBe('No results.');
   });
 
+  it('puts the symbol named in the query first and marks it as a name match', async () => {
+    const text = await searchCode(runtime, { query: 'AuthService.login', limit: 3 });
+    const first = text.split('\n')[0];
+    expect(first).toContain('AuthService.login');
+    expect(first).toMatch(/name match$/);
+  });
+
+  it('prints only the score in semantic mode', async () => {
+    const text = await searchCode(runtime, { query: 'login', limit: 1, mode: 'semantic' });
+    expect(text.split('\n')[0]).toMatch(/score \d\.\d{3}$/);
+    expect(text).not.toContain('name match');
+  });
+
   it('rejects an empty query', async () => {
     await expect(searchCode(runtime, { query: '  ' })).rejects.toThrow('must not be empty');
   });

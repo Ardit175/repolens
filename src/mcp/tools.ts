@@ -1,7 +1,7 @@
 import type { Chunk } from '../chunker/types.js';
 import type { GraphEdge } from '../graph/types.js';
 import type { Runtime } from '../runtime.js';
-import { searchIndex } from '../search.js';
+import { describeMatch, searchIndex, type SearchMode } from '../search.js';
 
 /** Raised for a request that is valid but has no answer, for example an unknown symbol. */
 export class ToolError extends Error {}
@@ -41,9 +41,10 @@ export interface SearchCodeInput {
   limit?: number | undefined;
   path?: string | undefined;
   language?: string | undefined;
+  mode?: SearchMode | undefined;
 }
 
-/** Semantic search: the closest chunks with their full code. */
+/** Search: exact symbol-name matches first (hybrid mode), then the closest chunks, with full code. */
 export async function searchCode(runtime: Runtime, input: SearchCodeInput): Promise<string> {
   const filter = {
     ...(input.path === undefined ? {} : { pathPrefix: input.path }),
@@ -55,11 +56,12 @@ export async function searchCode(runtime: Runtime, input: SearchCodeInput): Prom
     query: input.query,
     limit: input.limit ?? DEFAULT_SEARCH_RESULTS,
     filter,
+    ...(input.mode === undefined ? {} : { mode: input.mode }),
   });
   if (hits.length === 0) return 'No results.';
   return hits
-    .map(({ chunk, score }, i) =>
-      withCode(chunk, `${i + 1}. ${describeChunk(chunk)}  score ${score.toFixed(3)}`),
+    .map((hit, i) =>
+      withCode(hit.chunk, `${i + 1}. ${describeChunk(hit.chunk)}  ${describeMatch(hit)}`),
     )
     .join('\n\n');
 }
