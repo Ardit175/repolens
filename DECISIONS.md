@@ -45,6 +45,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Map import resolution (2026-11-12):** no new dependency. Each language gets an `ImportResolver` that maps an import edge to indexed paths by path alone, and returns nothing rather than guess: name-based fallbacks (C includes, Ruby requires, PHP namespaces, JVM class paths) only accept a unique suffix match. Go reads its module path from the indexed `go.mod` chunks, so the map still needs no source checkout. A Go import or JVM wildcard links to every file in the package directory.
 
 - **Watch mode (2026-11-13):** no new dependency; Node 22's recursive `fs.watch` reports changes and each burst triggers the existing incremental `indexRepository` pass instead of patching single files. One code path for one-shot and watch indexing keeps them consistent, and unchanged files cost only a re-chunk, not an embedding call. `serve --watch` writes all progress to stderr because stdout carries the MCP protocol.
+- **Hybrid search (2026-11-14):** no new dependency and no keyword index. Code-like tokens in the query are looked up with the existing exact-name `findChunks`, and name matches are placed ahead of vector hits by a fixed rule instead of a fused score (such as reciprocal rank fusion). A caller who types an identifier wants that symbol, and a fixed rule is easy to predict and test. Plain words in a multi-word query are not looked up, so prose queries behave as before.
 
 ## Environment variables
 | Name | Used for | Required |

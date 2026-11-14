@@ -93,3 +93,4 @@ Answer:
 
 ### M10 Developer workflow
 - [x] Watch mode: `repolens watch <path>` and `repolens serve --watch <path>` rerun the incremental index pass after file changes (debounced, never two passes at once, `.git` ignored), so the MCP tools answer from current code while you edit
+- [x] Hybrid search: `search`, `search_code` and `bench` rank exact symbol-name matches (identifiers such as `parseConfig`, `load_settings`, `AuthService.login`, or a one-word query) ahead of semantic hits; `--semantic` / `mode: "semantic"` turns it off
