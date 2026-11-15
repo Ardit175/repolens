@@ -94,3 +94,6 @@ Answer:
 ### M10 Developer workflow
 - [x] Watch mode: `repolens watch <path>` and `repolens serve --watch <path>` rerun the incremental index pass after file changes (debounced, never two passes at once, `.git` ignored), so the MCP tools answer from current code while you edit
 - [x] Hybrid search: `search`, `search_code` and `bench` rank exact symbol-name matches (identifiers such as `parseConfig`, `load_settings`, `AuthService.login`, or a one-word query) ahead of semantic hits; `--semantic` / `mode: "semantic"` turns it off
+- [ ] Review: hybrid search: `findByName` (`src/search.ts:70`) fetches 20 chunks per name before the `--path`/`--language` filter runs, so when a name occurs in more than 20 places the filtered exact match can be cut off. Filter in the store query (add filter fields to `ChunkQuery`) and test it
+- [ ] Review: watch mode: the listener only drops `.git` events (`src/watch.ts:41`), so changes in `node_modules`, `dist` and gitignored paths each trigger a full incremental pass. Ignore the walker skip list and gitignored paths in the listener, with a test
+- [ ] Review: watch mode: an fs watcher error is only logged (`src/watch.ts:36`, `src/cli.ts:177`), so `serve --watch` keeps serving a stale index silently. Restart the watcher or exit non-zero, with a test
