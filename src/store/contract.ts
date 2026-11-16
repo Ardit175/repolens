@@ -138,5 +138,36 @@ export function runVectorStoreContract(name: string, makeStore: () => Promise<Ve
       expect(await store.findChunks({ name: 'missing' })).toEqual([]);
       expect(await store.findChunks({ limit: 2 })).toHaveLength(2);
     });
+
+    it('finds chunks by parent, path prefix and language', async () => {
+      await store.upsert([
+        stored(makeChunk('src/a/x.ts', { name: 'run', parent: 'A', startLine: 1 }), [1, 0, 0]),
+        stored(makeChunk('src/a/x.ts', { name: 'run', parent: 'B', startLine: 9 }), [0, 1, 0]),
+        stored(makeChunk('src/b/y.ts', { name: 'run' }), [0, 0, 1]),
+        stored(makeChunk('lib/z.py', { name: 'run', language: 'python' }), [1, 1, 0]),
+      ]);
+      const byParent = await store.findChunks({ name: 'run', parent: 'B' });
+      expect(byParent.map((c) => c.startLine)).toEqual([9]);
+      const byPrefix = await store.findChunks({ name: 'run', pathPrefix: 'src/a/' });
+      expect(byPrefix.map((c) => c.parent)).toEqual(['A', 'B']);
+      const byLanguage = await store.findChunks({ name: 'run', language: 'python' });
+      expect(byLanguage.map((c) => c.path)).toEqual(['lib/z.py']);
+      const combined = await store.findChunks({
+        name: 'run',
+        pathPrefix: 'src/',
+        language: 'typescript',
+        parent: 'A',
+      });
+      expect(combined.map((c) => c.startLine)).toEqual([1]);
+    });
+
+    it('applies find filters before the limit', async () => {
+      const crowd = [1, 2, 3, 4, 5].map((n) =>
+        stored(makeChunk('a/f.ts', { name: 'run', startLine: n * 10 }), [1, 0, 0]),
+      );
+      await store.upsert([...crowd, stored(makeChunk('b/g.ts', { name: 'run' }), [0, 1, 0])]);
+      const found = await store.findChunks({ name: 'run', pathPrefix: 'b/', limit: 2 });
+      expect(found.map((c) => c.path)).toEqual(['b/g.ts']);
+    });
   });
 }

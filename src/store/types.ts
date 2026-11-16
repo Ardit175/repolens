@@ -19,11 +19,13 @@ export interface SearchHit {
   score: number;
 }
 
-export interface ChunkQuery {
+export interface ChunkQuery extends SearchFilter {
   /** Exact POSIX path of the file. */
   path?: string;
   /** Exact symbol name. */
   name?: string;
+  /** Exact name of the parent symbol, such as the class of a method. */
+  parent?: string;
   /** Maximum number of chunks to return. Defaults to 100. */
   limit?: number;
 }
@@ -37,7 +39,10 @@ export interface VectorStore {
   /** Maps each indexed path to the ids of its chunks (see `chunkId`), for incremental re-index. */
   listIdsByPath(): Promise<Map<string, string[]>>;
   search(vector: number[], limit: number, filter?: SearchFilter): Promise<SearchHit[]>;
-  /** Looks chunks up by exact path and/or name, ordered by path then start line. */
+  /**
+   * Looks chunks up by exact path, name or parent, optionally narrowed by `pathPrefix` and
+   * `language`. Filters apply before `limit`. Ordered by path then start line.
+   */
   findChunks(query: ChunkQuery): Promise<Chunk[]>;
   count(): Promise<number>;
 }

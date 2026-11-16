@@ -6,6 +6,7 @@ import {
   extractIdentifiers,
   formatHits,
   MAX_NAME_TOKENS,
+  NAME_MATCH_LIMIT,
   searchIndex,
   type RankedHit,
 } from './search.js';
@@ -227,6 +228,43 @@ describe('searchIndex hybrid mode', () => {
       filter: { language: 'python' },
     });
     expect(byLanguage.map((h) => h.chunk.path)).toEqual(['lib/other.py']);
+  });
+
+  it('finds a filtered name match even when the name occurs in more than the name limit', async () => {
+    const s = new InMemoryVectorStore();
+    const embeddings = new FakeEmbeddingProvider();
+    await s.ensureCollection(embeddings.dimensions);
+    const crowd = Array.from({ length: NAME_MATCH_LIMIT + 5 }, (_, i) =>
+      makeChunk(`a/file${String(i).padStart(2, '0')}.ts`, {
+        name: 'run',
+        content: `crowd ${i}`,
+      }),
+    );
+    const target = makeChunk('z/target.py', {
+      name: 'run',
+      language: 'python',
+      content: 'target body',
+    });
+    const chunks = [...crowd, target];
+    const vectors = await embeddings.embed(chunks.map((c) => c.content));
+    await s.upsert(chunks.map((chunk, i) => ({ id: chunkId(chunk), chunk, vector: vectors[i]! })));
+
+    const byPath = await searchIndex({
+      store: s,
+      embeddings,
+      query: 'run',
+      limit: 3,
+      filter: { pathPrefix: 'z/' },
+    });
+    expect(byPath.map((h) => [h.chunk.path, h.nameMatch])).toEqual([['z/target.py', true]]);
+    const byLanguage = await searchIndex({
+      store: s,
+      embeddings,
+      query: 'run',
+      limit: 3,
+      filter: { language: 'python' },
+    });
+    expect(byLanguage.map((h) => [h.chunk.path, h.nameMatch])).toEqual([['z/target.py', true]]);
   });
 
   it('returns no duplicates and respects the limit', async () => {
