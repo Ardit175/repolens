@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/Ardit175/repolens/compare/repolens-v0.8.0...repolens-v0.9.0) (2026-11-16)
+
+
+### Features
+
+* add loadIgnoreFilter to tell whether the walker skips a path ([d0230da](https://github.com/Ardit175/repolens/commit/d0230da16c5f913521227f74d119123cbf0dc99c))
+* add search mode to the CLI, the search_code tool and the benchmark ([7107bd5](https://github.com/Ardit175/repolens/commit/7107bd50536829a7ec52709af3318bfb96ca2561))
+* hybrid search that ranks exact symbol names first ([06cc55a](https://github.com/Ardit175/repolens/commit/06cc55a7fffe3c7fe15cda244e28de96f45a351d))
+* rank exact symbol-name matches ahead of semantic hits in search ([1363b6b](https://github.com/Ardit175/repolens/commit/1363b6bcd27c9a1d7faeea2deed9e2296c82b2f0))
+
+
+### Bug Fixes
+
+* apply path, language and parent filters in the store for exact-name search ([3eaa5a8](https://github.com/Ardit175/repolens/commit/3eaa5a894a32a161cc462e0b9ae44be524afc58a))
+* filtered name lookup and watch-mode robustness ([f22b663](https://github.com/Ardit175/repolens/commit/f22b663018f0fb6b51c8d028ddb7499ad3e02135))
+* skip ignored paths in watch mode and restart a failed file watcher ([306b26d](https://github.com/Ardit175/repolens/commit/306b26d78a1096f0f1cb271654dc27a4b0a5bdf0))
+
 ## [0.8.0](https://github.com/Ardit175/repolens/compare/repolens-v0.7.0...repolens-v0.8.0) (2026-11-13)
 
 
