@@ -23,7 +23,7 @@ import { serveStdio } from './mcp/server.js';
 import { createRuntime, type Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex, type SearchMode } from './search.js';
-import { walkFiles } from './walker.js';
+import { loadIgnoreFilter, walkFiles } from './walker.js';
 import { watchRepository, type WatchOptions, type Watcher } from './watch.js';
 
 export interface Io {
@@ -41,6 +41,7 @@ export interface Deps {
   createEmbeddings: () => EmbeddingProvider;
   serve: (runtime: Runtime, version: string) => Promise<void>;
   watch: (options: WatchOptions) => Watcher;
+  exit: (code: number) => void;
 }
 
 const defaultDeps: Deps = {
@@ -48,6 +49,7 @@ const defaultDeps: Deps = {
   createEmbeddings: () => createEmbeddingProvider(),
   serve: serveStdio,
   watch: watchRepository,
+  exit: (code) => process.exit(code),
 };
 
 const SHEBANG_PROBE_BYTES = 256;
@@ -164,7 +166,7 @@ interface WatchSession {
  */
 async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
   const { target, runtime, log, logError } = session;
-  const reindex = () =>
+  const indexOnce = () =>
     indexRepository({
       root: target,
       store: runtime.store,
@@ -172,22 +174,36 @@ async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
       embeddings: runtime.embeddings,
       ...(session.maxFileSize === undefined ? {} : { maxFileSize: session.maxFileSize }),
     });
-  log(formatIndexStats(await reindex()));
+  log(formatIndexStats(await indexOnce()));
   log(`Watching ${target} for changes (Ctrl+C to stop)\n`);
+
+  let isIgnored = await loadIgnoreFilter(target);
+  // Reloading after each pass lets .gitignore edits take effect for later events.
+  const reindex = async () => {
+    const stats = await indexOnce();
+    isIgnored = await loadIgnoreFilter(target);
+    return stats;
+  };
+  const describeError = (error: unknown) =>
+    error instanceof Error ? error.message : String(error);
   const watcher = deps.watch({
     root: target,
     reindex,
+    isIgnored: (relativePath) => isIgnored(relativePath),
     ...(session.debounceMs === undefined ? {} : { debounceMs: session.debounceMs }),
     onIndexed: (stats, paths) => {
       if (stats.filesChanged + stats.filesRemoved + stats.graphFilesUpdated > 0) {
         log(formatReindexed(stats, paths));
       }
     },
-    onError: (error) =>
-      logError(`error: ${error instanceof Error ? error.message : String(error)}\n`),
+    onError: (error) => logError(`error: ${describeError(error)}\n`),
+    onFatal: (error) => {
+      logError(`error: file watcher stopped: ${describeError(error)}\n`);
+      deps.exit(1);
+    },
   });
   process.once('SIGINT', () => {
-    void watcher.close().finally(() => process.exit(0));
+    void watcher.close().finally(() => deps.exit(0));
   });
 }
 

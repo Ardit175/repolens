@@ -6,7 +6,7 @@ import { InMemoryGraphStore } from './graph/store.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
-import { watchRepository, type WatchListener, type Watcher } from './watch.js';
+import { MAX_WATCH_RESTARTS, watchRepository, type WatchListener, type Watcher } from './watch.js';
 
 const EMPTY_STATS: IndexStats = {
   filesScanned: 0,
@@ -31,23 +31,43 @@ function deferred(): Deferred {
   return { promise, resolve };
 }
 
-function setup(reindex: () => Promise<IndexStats>) {
+interface SetupOptions {
+  isIgnored?: (relativePath: string) => boolean;
+  watchThrows?: () => boolean;
+}
+
+function setup(reindex: () => Promise<IndexStats>, extra: SetupOptions = {}) {
   let emit: WatchListener = () => {};
-  const fsState = { closed: 0 };
+  const fsState = { started: 0, closed: 0 };
+  const errorHandlers: Array<(error: unknown) => void> = [];
   const indexed: string[][] = [];
   const errors: unknown[] = [];
+  const fatals: unknown[] = [];
   const watcher = watchRepository({
     root: '/repo',
     reindex,
     debounceMs: 20,
     onIndexed: (_stats, paths) => void indexed.push(paths),
     onError: (error) => void errors.push(error),
-    watch: (_root, listener) => {
+    onFatal: (error) => void fatals.push(error),
+    ...(extra.isIgnored ? { isIgnored: extra.isIgnored } : {}),
+    watch: (_root, listener, onError) => {
+      if (fsState.started > 0 && extra.watchThrows?.()) throw new Error('restart failed');
+      fsState.started++;
       emit = listener;
+      errorHandlers.push(onError);
       return { close: () => void fsState.closed++ };
     },
   });
-  return { watcher, emit: (p: string | null) => emit(p), fsState, indexed, errors };
+  return {
+    watcher,
+    emit: (p: string | null) => emit(p),
+    failWatcher: (error: unknown, which = errorHandlers.length - 1) => errorHandlers[which]!(error),
+    fsState,
+    indexed,
+    errors,
+    fatals,
+  };
 }
 
 const open: Watcher[] = [];
@@ -86,6 +106,107 @@ describe('watchRepository', () => {
     t.emit('.github/ci.yml');
     await t.watcher.idle();
     expect(passes).toBe(1);
+  });
+
+  it('drops events for ignored paths and reports only the rest from a mixed burst', async () => {
+    let passes = 0;
+    const t = setup(async () => (passes++, EMPTY_STATS), {
+      isIgnored: (p) => p.startsWith('dist/') || p.endsWith('.log'),
+    });
+    track(t.watcher);
+    t.emit('dist/out.js');
+    t.emit('debug.log');
+    await t.watcher.idle();
+    expect(passes).toBe(0);
+    t.emit('dist/out.js');
+    t.emit('src/b.ts');
+    t.emit('a.log');
+    t.emit('src/a.ts');
+    await t.watcher.idle();
+    expect(passes).toBe(1);
+    expect(t.indexed).toEqual([['src/a.ts', 'src/b.ts']]);
+  });
+
+  it('still triggers a pass for a null filename when a predicate is set', async () => {
+    const t = setup(async () => EMPTY_STATS, { isIgnored: () => true });
+    track(t.watcher);
+    t.emit(null);
+    await t.watcher.idle();
+    expect(t.indexed).toEqual([[]]);
+  });
+
+  it('reports a watcher error, restarts the fs watcher and runs a catch-up pass', async () => {
+    let passes = 0;
+    const t = setup(async () => (passes++, EMPTY_STATS));
+    track(t.watcher);
+    const failure = new Error('EMFILE');
+    t.failWatcher(failure);
+    expect(t.errors).toEqual([failure]);
+    expect(t.fsState).toEqual({ started: 2, closed: 1 });
+    await t.watcher.idle();
+    expect(passes).toBe(1);
+    t.emit('a.ts');
+    await t.watcher.idle();
+    expect(t.indexed).toEqual([[], ['a.ts']]);
+    expect(t.fatals).toEqual([]);
+  });
+
+  it('ignores errors from a watcher that was already replaced', async () => {
+    const t = setup(async () => EMPTY_STATS);
+    track(t.watcher);
+    t.failWatcher(new Error('first'));
+    t.failWatcher(new Error('late'), 0);
+    expect(t.fsState.started).toBe(2);
+    expect(t.errors).toHaveLength(1);
+  });
+
+  it('stops with onFatal once after more than MAX_WATCH_RESTARTS errors', async () => {
+    let passes = 0;
+    const t = setup(async () => (passes++, EMPTY_STATS));
+    for (let i = 0; i < MAX_WATCH_RESTARTS; i++) t.failWatcher(new Error(`e${i}`));
+    expect(t.fatals).toEqual([]);
+    const last = new Error('last');
+    t.failWatcher(last);
+    expect(t.fatals).toEqual([last]);
+    expect(t.fsState.started).toBe(MAX_WATCH_RESTARTS + 1);
+    expect(t.fsState.closed).toBe(MAX_WATCH_RESTARTS + 1);
+    await t.watcher.idle();
+    const before = passes;
+    t.emit('a.ts');
+    t.failWatcher(new Error('after'));
+    await sleep(60);
+    expect(passes).toBe(before);
+    expect(t.fatals).toHaveLength(1);
+    await t.watcher.close();
+    expect(t.fsState.closed).toBe(MAX_WATCH_RESTARTS + 1);
+  });
+
+  it('treats a throwing restart as an error and goes fatal once restarts run out', async () => {
+    const t = setup(async () => EMPTY_STATS, { watchThrows: () => true });
+    t.failWatcher(new Error('original'));
+    expect(t.fatals).toEqual([new Error('restart failed')]);
+    expect(t.errors).toHaveLength(1 + MAX_WATCH_RESTARTS);
+    expect(t.fsState.closed).toBe(1);
+  });
+
+  it('lets a failure of the very first start throw', () => {
+    expect(() =>
+      watchRepository({
+        root: '/repo',
+        reindex: async () => EMPTY_STATS,
+        watch: () => {
+          throw new Error('cannot watch');
+        },
+      }),
+    ).toThrow('cannot watch');
+  });
+
+  it('does not restart after close', async () => {
+    const t = setup(async () => EMPTY_STATS);
+    await t.watcher.close();
+    t.failWatcher(new Error('late'));
+    expect(t.fsState).toEqual({ started: 1, closed: 1 });
+    expect(t.errors).toEqual([]);
   });
 
   it('runs exactly one follow-up pass for events during a pass, without overlap', async () => {
