@@ -163,6 +163,24 @@ describe('QdrantVectorStore', () => {
       expect(calls[1]!.body.offset).toBe('page-2');
     });
 
+    it('sends parent, language and path prefix conditions', async () => {
+      const { store, calls } = setup([json({ result: { points: [] } })]);
+      await store.findChunks({
+        name: 'login',
+        parent: 'AuthService',
+        language: 'typescript',
+        pathPrefix: 'src/auth/',
+      });
+      expect(calls[0]!.body.filter).toEqual({
+        must: [
+          { key: 'name', match: { value: 'login' } },
+          { key: 'parent', match: { value: 'AuthService' } },
+          { key: 'language', match: { value: 'typescript' } },
+          { key: 'dir_prefixes', match: { value: 'src/auth/' } },
+        ],
+      });
+    });
+
     it('sends no filter for an empty query and honours the limit', async () => {
       const a = makeChunk('a.ts');
       const b = makeChunk('b.ts');

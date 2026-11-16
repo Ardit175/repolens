@@ -124,6 +124,15 @@ export class QdrantVectorStore implements VectorStore {
     const must: object[] = [];
     if (query.path !== undefined) must.push({ key: 'path', match: { value: query.path } });
     if (query.name !== undefined) must.push({ key: 'name', match: { value: query.name } });
+    if (query.parent !== undefined) {
+      must.push({ key: 'parent', match: { value: query.parent } });
+    }
+    if (query.language !== undefined) {
+      must.push({ key: 'language', match: { value: query.language } });
+    }
+    if (query.pathPrefix !== undefined) {
+      must.push({ key: 'dir_prefixes', match: { value: query.pathPrefix } });
+    }
     const limit = query.limit ?? DEFAULT_FIND_LIMIT;
     const chunks: Chunk[] = [];
     let offset: string | number | null | undefined;

@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { walkFiles } from './walker.js';
+import { loadIgnoreFilter, walkFiles } from './walker.js';
 
 let root: string;
 
@@ -104,5 +104,66 @@ describe('walkFiles', () => {
     await write('a/b.ts');
     await write('c/d.ts');
     expect(await paths()).toEqual(['a/b.ts', 'a/z.ts', 'b.ts', 'c/d.ts']);
+  });
+});
+
+describe('loadIgnoreFilter', () => {
+  it('ignores always-skipped directories at any depth', async () => {
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('node_modules/x.js')).toBe(true);
+    expect(ignored('pkg/node_modules/y/z.js')).toBe(true);
+    expect(ignored('.git/HEAD')).toBe(true);
+  });
+
+  it('applies the root .gitignore to files and to ancestor directories', async () => {
+    await write('.gitignore', 'dist/\n*.log\n');
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('dist')).toBe(true);
+    expect(ignored('dist/out.js')).toBe(true);
+    expect(ignored('a/dist/deep/out.js')).toBe(true);
+    expect(ignored('debug.log')).toBe(true);
+    expect(ignored('src/debug.log')).toBe(true);
+    expect(ignored('src/a.ts')).toBe(false);
+  });
+
+  it('applies a nested .gitignore only beneath its directory', async () => {
+    await write('pkg/.gitignore', '/secret.txt\n*.tmp\n');
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('pkg/secret.txt')).toBe(true);
+    expect(ignored('pkg/a.tmp')).toBe(true);
+    expect(ignored('secret.txt')).toBe(false);
+    expect(ignored('other/a.tmp')).toBe(false);
+  });
+
+  it('honours negation, with deeper files overriding shallower ones', async () => {
+    await write('.gitignore', '*.log\n!keep.log\n');
+    await write('sub/.gitignore', '!debug.log\n');
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('keep.log')).toBe(false);
+    expect(ignored('other.log')).toBe(true);
+    expect(ignored('sub/debug.log')).toBe(false);
+    expect(ignored('debug.log')).toBe(true);
+  });
+
+  it('never ignores .gitignore files themselves', async () => {
+    await write('.gitignore', '.gitignore\n*.log\n');
+    await write('pkg/.gitignore', 'x');
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('.gitignore')).toBe(false);
+    expect(ignored('pkg/.gitignore')).toBe(false);
+  });
+
+  it('does not read .gitignore files inside ignored or skipped directories', async () => {
+    await write('.gitignore', 'vendor/\n');
+    await write('vendor/.gitignore', '*.ts\n');
+    await write('node_modules/p/.gitignore', '*.ts\n');
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('src/a.ts')).toBe(false);
+  });
+
+  it('does not ignore ordinary files', async () => {
+    const ignored = await loadIgnoreFilter(root);
+    expect(ignored('src/a.ts')).toBe(false);
+    expect(ignored('README.md')).toBe(false);
   });
 });

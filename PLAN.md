@@ -51,7 +51,7 @@ Answer:
 
 ### M3 Embeddings and storage
 - [x] `EmbeddingProvider` interface with Azure OpenAI (`text-embedding-3-small` deployment) and local transformers.js providers, `auto` selection, and batching with retry/backoff
-- [x] `VectorStore` interface with a Qdrant implementation and an in-memory implementation for tests (the Qdrant integration test runs in CI against a service container; Docker Hub rate-limited the image pull in the run that built it, so it has not run locally yet; Docker Hub rate-limited the pull again on 2026-10-16, so the new end-to-end indexer test also waits for CI)
+- [x] `VectorStore` interface with a Qdrant implementation and an in-memory implementation for tests (the Qdrant integration tests run in CI against a service container, and ran locally against real Qdrant on 2026-11-16)
 - [x] `docker-compose.yml` for Qdrant plus a `repolens doctor` check
 - [x] Incremental re-index by chunk id (path, start line, content hash) (only changed or removed files are touched)
 - [x] `repolens search "<query>"` with path/language filters and readable output
@@ -94,6 +94,6 @@ Answer:
 ### M10 Developer workflow
 - [x] Watch mode: `repolens watch <path>` and `repolens serve --watch <path>` rerun the incremental index pass after file changes (debounced, never two passes at once, `.git` ignored), so the MCP tools answer from current code while you edit
 - [x] Hybrid search: `search`, `search_code` and `bench` rank exact symbol-name matches (identifiers such as `parseConfig`, `load_settings`, `AuthService.login`, or a one-word query) ahead of semantic hits; `--semantic` / `mode: "semantic"` turns it off
-- [ ] Review: hybrid search: `findByName` (`src/search.ts:70`) fetches 20 chunks per name before the `--path`/`--language` filter runs, so when a name occurs in more than 20 places the filtered exact match can be cut off. Filter in the store query (add filter fields to `ChunkQuery`) and test it
-- [ ] Review: watch mode: the listener only drops `.git` events (`src/watch.ts:41`), so changes in `node_modules`, `dist` and gitignored paths each trigger a full incremental pass. Ignore the walker skip list and gitignored paths in the listener, with a test
-- [ ] Review: watch mode: an fs watcher error is only logged (`src/watch.ts:36`, `src/cli.ts:177`), so `serve --watch` keeps serving a stale index silently. Restart the watcher or exit non-zero, with a test
+- [x] Review fix: hybrid search name lookups filter by path, language and parent in the store (`ChunkQuery`), so the per-name limit no longer cuts off a filtered match
+- [x] Review fix: watch mode ignores `node_modules` and gitignored paths (`loadIgnoreFilter`, reloaded after each pass)
+- [x] Review fix: a failed fs watcher is restarted with a catch-up pass (at most 3 times); then `watch` and `serve --watch` log the error and exit 1

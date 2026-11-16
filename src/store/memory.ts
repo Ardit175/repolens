@@ -72,6 +72,9 @@ export class InMemoryVectorStore implements VectorStore {
     for (const { chunk } of this.items.values()) {
       if (query.path !== undefined && chunk.path !== query.path) continue;
       if (query.name !== undefined && chunk.name !== query.name) continue;
+      if (query.parent !== undefined && chunk.parent !== query.parent) continue;
+      if (query.pathPrefix !== undefined && !chunk.path.startsWith(query.pathPrefix)) continue;
+      if (query.language !== undefined && chunk.language !== query.language) continue;
       matches.push(chunk);
     }
     return sortChunks(matches).slice(0, query.limit ?? DEFAULT_FIND_LIMIT);

@@ -142,6 +142,8 @@ describe('repolens index, search and doctor with a store', () => {
   const serve = async (_runtime: Runtime, version: string) => void served.push(version);
   const watchCalls: WatchOptions[] = [];
   const watcherClosed = { count: 0 };
+  const exitCodes: number[] = [];
+  const exit = (code: number) => void exitCodes.push(code);
   const watch = (options: WatchOptions): Watcher => {
     watchCalls.push(options);
     return {
@@ -153,6 +155,7 @@ describe('repolens index, search and doctor with a store', () => {
   afterEach(() => {
     watchCalls.length = 0;
     watcherClosed.count = 0;
+    exitCodes.length = 0;
     for (const l of process.listeners('SIGINT')) {
       if (!sigintListeners.includes(l)) process.removeListener('SIGINT', l);
     }
@@ -170,6 +173,7 @@ describe('repolens index, search and doctor with a store', () => {
         createEmbeddings: () => embeddings,
         serve,
         watch,
+        exit,
       },
     };
   };
@@ -291,6 +295,7 @@ describe('repolens index, search and doctor with a store', () => {
       createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
       watch,
+      exit,
     };
     await runWith(failing, 'map');
     expect(err).toContain('QDRANT_URL is not set.');
@@ -311,6 +316,7 @@ describe('repolens index, search and doctor with a store', () => {
       createEmbeddings: () => new FakeEmbeddingProvider(),
       serve,
       watch,
+      exit,
     };
     await runWith(failing, 'serve');
     expect(err).toContain('QDRANT_URL is not set.');
@@ -404,11 +410,34 @@ describe('repolens index, search and doctor with a store', () => {
 
   it('Ctrl+C closes the watcher and exits', async () => {
     const { deps } = memory();
-    const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
     await runWith(deps, 'watch', dir);
     process.emit('SIGINT');
-    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    await vi.waitFor(() => expect(exitCodes).toEqual([0]));
     expect(watcherClosed.count).toBe(1);
+  });
+
+  it('watch logs a fatal watcher error and exits with 1', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'watch', dir);
+    watchCalls[0]!.onFatal?.(new Error('EMFILE'));
+    expect(err).toBe('error: file watcher stopped: EMFILE\n');
+    expect(exitCodes).toEqual([1]);
+  });
+
+  it('watch ignores skipped and gitignored paths but not source files', async () => {
+    const { deps } = memory();
+    write('.gitignore', 'generated/\n');
+    write('src/a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(deps, 'watch', dir);
+    const { isIgnored, reindex } = watchCalls[0]!;
+    expect(isIgnored?.('node_modules/x.js')).toBe(true);
+    expect(isIgnored?.('generated/out.ts')).toBe(true);
+    expect(isIgnored?.('src/a.ts')).toBe(false);
+
+    write('.gitignore', 'generated/\nsrc/\n');
+    expect(isIgnored?.('src/a.ts')).toBe(false);
+    await reindex();
+    expect(isIgnored?.('src/a.ts')).toBe(true);
   });
 
   it('serve --watch indexes first, logs to stderr only, then serves', async () => {

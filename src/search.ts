@@ -52,13 +52,10 @@ export function extractIdentifiers(query: string): string[] {
   return [...new Set(identifiers)].slice(0, MAX_NAME_TOKENS);
 }
 
-function matchesFilter(chunk: Chunk, filter: SearchFilter | undefined): boolean {
-  if (filter?.pathPrefix !== undefined && !chunk.path.startsWith(filter.pathPrefix)) return false;
-  if (filter?.language !== undefined && chunk.language !== filter.language) return false;
-  return true;
-}
-
-/** Finds chunks named by `identifier`; `Class.method` must also match the parent. */
+/**
+ * Finds chunks named by `identifier`; `Class.method` must also match the parent. The filter is
+ * applied by the store, so the per-name limit never cuts off a match inside the filter.
+ */
 async function findByName(
   store: VectorStore,
   identifier: string,
@@ -67,10 +64,13 @@ async function findByName(
   const dot = identifier.lastIndexOf('.');
   const parent = dot === -1 ? undefined : identifier.slice(0, dot);
   const name = dot === -1 ? identifier : identifier.slice(dot + 1);
-  const chunks = await store.findChunks({ name, limit: NAME_MATCH_LIMIT });
-  return chunks.filter(
-    (chunk) => (parent === undefined || chunk.parent === parent) && matchesFilter(chunk, filter),
-  );
+  return store.findChunks({
+    name,
+    ...(parent === undefined ? {} : { parent }),
+    ...(filter?.pathPrefix === undefined ? {} : { pathPrefix: filter.pathPrefix }),
+    ...(filter?.language === undefined ? {} : { language: filter.language }),
+    limit: NAME_MATCH_LIMIT,
+  });
 }
 
 /**
