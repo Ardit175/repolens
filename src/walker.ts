@@ -65,6 +65,55 @@ function isIgnored(rules: Rules[], relPath: string, isDir: boolean): boolean {
   return ignored;
 }
 
+/**
+ * Builds a predicate telling whether the walker would skip a POSIX path relative to `root`:
+ * a path segment in the always-skipped set, or the path or an ancestor directory matched by
+ * the root or a nested .gitignore. An fs event does not say whether a path is a file or a
+ * directory, so the full path is tested as both. `.gitignore` files themselves are never
+ * ignored, because editing one changes what the walker sees.
+ */
+export async function loadIgnoreFilter(root: string): Promise<(relativePath: string) => boolean> {
+  const all: Rules[] = [];
+  await collectRules(path.resolve(root), '', [], all);
+
+  const rulesFor = (relPath: string): Rules[] =>
+    all.filter(({ base }) => base === '' || relPath.startsWith(`${base}/`));
+
+  return (relativePath) => {
+    const segments = relativePath.split('/').filter((segment) => segment !== '');
+    if (segments.some((segment) => ALWAYS_SKIPPED.has(segment))) return true;
+    if (segments.at(-1) === '.gitignore') return false;
+
+    for (let end = 1; end < segments.length; end++) {
+      const ancestor = segments.slice(0, end).join('/');
+      if (isIgnored(rulesFor(ancestor), ancestor, true)) return true;
+    }
+    const full = segments.join('/');
+    const rules = rulesFor(full);
+    return isIgnored(rules, full, false) || isIgnored(rules, full, true);
+  };
+}
+
+/** Gathers the .gitignore files the walker would read, descending only into directories it would enter. */
+async function collectRules(
+  absDir: string,
+  relDir: string,
+  parentRules: Rules[],
+  out: Rules[],
+): Promise<void> {
+  const own = await loadRules(absDir, relDir);
+  if (own) out.push(own);
+  const rules = own ? [...parentRules, own] : parentRules;
+  const entries = await fs.readdir(absDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (ALWAYS_SKIPPED.has(entry.name) || entry.isSymbolicLink() || !entry.isDirectory()) continue;
+    const relPath = relDir === '' ? entry.name : `${relDir}/${entry.name}`;
+    if (isIgnored(rules, relPath, true)) continue;
+    await collectRules(path.join(absDir, entry.name), relPath, rules, out);
+  }
+}
+
 async function walkDir(
   absDir: string,
   relDir: string,
