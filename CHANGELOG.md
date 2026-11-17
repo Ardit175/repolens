@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0](https://github.com/Ardit175/repolens/compare/repolens-v0.9.0...repolens-v0.10.0) (2026-11-17)
+
+
+### Features
+
+* add --index to the CLI plus indexes and drop commands ([cbf350c](https://github.com/Ardit175/repolens/commit/cbf350cc29b0f32b9dbf1a5c49752a0699861cf0))
+* add named indexes with one Qdrant collection pair per index ([8c060b9](https://github.com/Ardit175/repolens/commit/8c060b91cfc8ec299a88e3cddecaa59c5ca8c0d9))
+* named indexes for several repositories in one Qdrant ([919d135](https://github.com/Ardit175/repolens/commit/919d1352d2b84c190b40446b9878b6921d8510cf))
+
 ## [0.9.0](https://github.com/Ardit175/repolens/compare/repolens-v0.8.0...repolens-v0.9.0) (2026-11-16)
 
 
