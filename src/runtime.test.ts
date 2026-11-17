@@ -38,4 +38,46 @@ describe('createRuntime', () => {
     expect(urls).toEqual(['http://qdrant:6333/collections/repolens_graph']);
     expect(keys).toEqual(['k']);
   });
+
+  describe('named indexes', () => {
+    async function collectUrls(run: () => Promise<void>): Promise<string[]> {
+      const urls: string[] = [];
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: string) => {
+        urls.push(url);
+        return new Response('{}', { status: 200 });
+      }) as unknown as typeof fetch;
+      try {
+        await run();
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+      return urls;
+    }
+
+    const base = { QDRANT_URL: 'http://qdrant:6333', REPOLENS_EMBEDDINGS: 'local' };
+
+    it('uses the index option for the chunk and graph collections', async () => {
+      const urls = await collectUrls(async () => {
+        const runtime = createRuntime(base, { index: 'web' });
+        await runtime.graph.ensure();
+        await runtime.store.ensureCollection(0).catch(() => undefined);
+      });
+      expect(urls).toEqual([
+        'http://qdrant:6333/collections/web_graph',
+        'http://qdrant:6333/collections/web',
+      ]);
+    });
+
+    it('uses REPOLENS_INDEX when no option is given', async () => {
+      const urls = await collectUrls(async () => {
+        await createRuntime({ ...base, REPOLENS_INDEX: 'api' }).graph.ensure();
+      });
+      expect(urls).toEqual(['http://qdrant:6333/collections/api_graph']);
+    });
+
+    it('rejects an invalid index name', () => {
+      expect(() => createRuntime(base, { index: 'x y' })).toThrow('Invalid index name');
+    });
+  });
 });
