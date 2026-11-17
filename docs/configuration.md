@@ -2,16 +2,17 @@
 
 repolens reads all settings from environment variables (see `.env.example`). Nothing secret is stored in the repo.
 
-| Variable                            | Meaning                                                                                                                            | Default |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `QDRANT_URL`                        | Qdrant REST URL, e.g. `http://localhost:6333`. Required by every command except `index --dry-run` and `bench` (without `--qdrant`) | none    |
-| `QDRANT_API_KEY`                    | API key for a secured Qdrant                                                                                                       | none    |
-| `REPOLENS_EMBEDDINGS`               | `auto`, `azure` or `local` (see [providers](providers.md))                                                                         | `auto`  |
-| `AZURE_OPENAI_ENDPOINT`             | Azure OpenAI resource URL                                                                                                          | none    |
-| `AZURE_OPENAI_API_KEY`              | Azure OpenAI key                                                                                                                   | none    |
-| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | Deployment name of `text-embedding-3-small`                                                                                        | none    |
+| Variable                            | Meaning                                                                                                                            | Default    |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `QDRANT_URL`                        | Qdrant REST URL, e.g. `http://localhost:6333`. Required by every command except `index --dry-run` and `bench` (without `--qdrant`) | none       |
+| `QDRANT_API_KEY`                    | API key for a secured Qdrant                                                                                                       | none       |
+| `REPOLENS_INDEX`                    | Index to use when `--index` is not given: 1-48 letters, digits, `-` or `_`, not ending in `_graph`                                 | `repolens` |
+| `REPOLENS_EMBEDDINGS`               | `auto`, `azure` or `local` (see [providers](providers.md))                                                                         | `auto`     |
+| `AZURE_OPENAI_ENDPOINT`             | Azure OpenAI resource URL                                                                                                          | none       |
+| `AZURE_OPENAI_API_KEY`              | Azure OpenAI key                                                                                                                   | none       |
+| `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | Deployment name of `text-embedding-3-small`                                                                                        | none       |
 
-The vector index lives in the Qdrant collection `repolens` and the symbol graph in `repolens_graph`. Start Qdrant with `docker compose up -d qdrant`.
+Each index name maps to two Qdrant collections: `<name>` holds the chunks and `<name>_graph` the symbol graph. The name comes from `--index`, then `REPOLENS_INDEX`, then `repolens`. It must start with a letter or digit and must not end in `_graph`. Start Qdrant with `docker compose up -d qdrant`.
 
 ## Commands
 
@@ -25,8 +26,10 @@ The vector index lives in the Qdrant collection `repolens` and the symbol graph 
 | `repolens serve`                         | Serves the index over MCP on stdio; `--watch <path>` indexes and keeps it fresh                    |
 | `repolens map`                           | Writes a self-contained HTML dependency map; `-o` output file, `--path` prefix filter              |
 | `repolens bench <path> --queries <file>` | Index time, search latency and recall; `--mode hybrid\|semantic` (see [benchmarks](benchmarks.md)) |
+| `repolens indexes`                       | Lists the indexes in Qdrant with chunk, file and dimension counts                                  |
+| `repolens drop <name> --yes`             | Deletes an index and its graph; refuses without `--yes`                                            |
 
-`index --max-file-size <bytes>` (also accepted by `watch`) skips larger files (default 1 MiB). The walker respects nested `.gitignore` files and skips binary files.
+Every command that reads or writes the index takes `--index <name>` (see above). `index --max-file-size <bytes>` (also accepted by `watch`) skips larger files (default 1 MiB). The walker respects nested `.gitignore` files and skips binary files.
 
 ## Supported languages
 
