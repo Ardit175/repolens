@@ -97,3 +97,4 @@ Answer:
 - [x] Review fix: hybrid search name lookups filter by path, language and parent in the store (`ChunkQuery`), so the per-name limit no longer cuts off a filtered match
 - [x] Review fix: watch mode ignores `node_modules` and gitignored paths (`loadIgnoreFilter`, reloaded after each pass)
 - [x] Review fix: a failed fs watcher is restarted with a catch-up pass (at most 3 times); then `watch` and `serve --watch` log the error and exit 1
+- [x] Named indexes: `--index <name>` (or `REPOLENS_INDEX`, default `repolens`) picks a Qdrant collection pair `<name>` and `<name>_graph` for `index`, `search`, `watch`, `serve`, `map` and `bench --qdrant`; `repolens indexes` lists them and `repolens drop <name> --yes` deletes one, so a second repository no longer wipes the first and a provider switch needs no volume wipe

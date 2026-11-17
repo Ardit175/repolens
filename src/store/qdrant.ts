@@ -50,7 +50,7 @@ export class QdrantVectorStore implements VectorStore {
       const size = body.result?.config?.params?.vectors?.size;
       if (size !== dimensions) {
         throw new Error(
-          `Qdrant collection "${this.collection}" has ${String(size)} dimensions, but ${dimensions} were requested`,
+          `Qdrant collection "${this.collection}" has ${String(size)} dimensions, but ${dimensions} were requested. The index was built with another embedding provider: use --index <name> (or REPOLENS_INDEX) for a separate index, or drop it with \`repolens drop ${this.collection} --yes\`.`,
         );
       }
       return;

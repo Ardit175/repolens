@@ -9,6 +9,6 @@
 
 Both providers send texts in batches and retry rate-limit and server errors with backoff.
 
-**One index, one provider.** A Qdrant collection is created with the provider's dimension count. Switching between Azure (1536) and local (384) against the same collection fails with a dimension mismatch error. Use a fresh Qdrant volume (`docker compose down -v`) when you switch.
+**One index, one provider.** An index's Qdrant collection is created with the provider's dimension count. Switching between Azure (1536) and local (384) against the same index fails with a dimension mismatch error. Keep a separate index for each provider (`--index azure` and `--index local`), or delete the old one with `repolens drop <name> --yes` before you switch.
 
 Tests never call a paid API. The Azure provider is tested with a fake `fetch`, and there is one opt-in smoke test, `RUN_SMOKE=1 npx vitest run src/embeddings/smoke.test.ts`, that needs the Azure variables.

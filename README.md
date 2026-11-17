@@ -37,6 +37,23 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
+### Several repositories
+
+Each index name has its own pair of Qdrant collections, so indexing a second repository does not delete the first one, and a different embedding provider can use its own index. Pick the index with `--index <name>` on `index`, `search`, `watch`, `serve`, `map` and `bench --qdrant`, or with `REPOLENS_INDEX`. Without either, the name is `repolens`.
+
+```bash
+npm run dev -- index ~/code/web --index web
+npm run dev -- search "where is the cart total computed?" --index web
+npm run dev -- indexes                    # every index, with chunk and file counts
+npm run dev -- drop web --yes             # deletes the index and its graph
+```
+
+To serve one index to an MCP client, pass the same name to `serve`:
+
+```bash
+claude mcp add web --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/repolens serve --index web
+```
+
 ## Use with an MCP client
 
 `repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`. Add `--watch <path>` (for example `repolens serve --watch .`) to index that directory first and keep the index fresh while the server runs. Progress goes to stderr so the MCP stream on stdout stays clean.
