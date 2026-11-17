@@ -20,6 +20,14 @@ import { detectLanguage, hasKnownExtension } from './language.js';
 import { buildMapData } from './map/build.js';
 import { renderMapHtml } from './map/html.js';
 import { serveStdio } from './mcp/server.js';
+import {
+  dropIndex,
+  listIndexes,
+  qdrantConnection,
+  resolveIndexName,
+  validateIndexName,
+  type IndexInfo,
+} from './indexes.js';
 import { createRuntime, type Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex, type SearchMode } from './search.js';
@@ -37,7 +45,9 @@ const defaultIo: Io = {
 };
 
 export interface Deps {
-  createRuntime: () => Runtime;
+  createRuntime: (index?: string) => Runtime;
+  listIndexes: () => Promise<IndexInfo[]>;
+  dropIndex: (name: string) => Promise<{ chunks: boolean; graph: boolean }>;
   createEmbeddings: () => EmbeddingProvider;
   serve: (runtime: Runtime, version: string) => Promise<void>;
   watch: (options: WatchOptions) => Watcher;
@@ -45,7 +55,9 @@ export interface Deps {
 }
 
 const defaultDeps: Deps = {
-  createRuntime: () => createRuntime(),
+  createRuntime: (index) => createRuntime(process.env, index === undefined ? {} : { index }),
+  listIndexes: () => listIndexes(qdrantConnection()),
+  dropIndex: (name) => dropIndex(qdrantConnection(), name),
   createEmbeddings: () => createEmbeddingProvider(),
   serve: serveStdio,
   watch: watchRepository,
@@ -65,6 +77,13 @@ function parsePositiveInt(value: string): number {
     throw new InvalidArgumentError('must be a positive integer.');
   }
   return Number(value);
+}
+
+const INDEX_OPTION_HELP = 'index name (default: REPOLENS_INDEX or "repolens")';
+
+/** Adds `--index <name>` to a command that talks to the vector store. */
+function withIndexOption(command: Command, help = INDEX_OPTION_HELP): Command {
+  return command.option('--index <name>', help);
 }
 
 function parseSearchMode(value: string): SearchMode {
@@ -121,8 +140,9 @@ async function runDryRun(root: string, maxFileSize: number | undefined, io: Io):
   io.out(formatSummary(files.length, counts, unrecognised));
 }
 
-function formatIndexStats(stats: IndexStats): string {
+function formatIndexStats(stats: IndexStats, index: string): string {
   const lines = [
+    `Index: ${index}`,
     `Scanned ${stats.filesScanned} file${stats.filesScanned === 1 ? '' : 's'}`,
     `Changed: ${stats.filesChanged} (${stats.chunksEmbedded} chunks embedded)`,
     `Unchanged: ${stats.filesUnchanged}`,
@@ -131,6 +151,19 @@ function formatIndexStats(stats: IndexStats): string {
   ];
   if (stats.filesSkipped > 0) lines.push(`Skipped (unreadable or binary): ${stats.filesSkipped}`);
   return lines.join('\n') + '\n';
+}
+
+function formatIndexes(indexes: IndexInfo[]): string {
+  if (indexes.length === 0) return 'No indexes yet. Run `repolens index <path>` to create one.\n';
+  const header = ['name', 'chunks', 'files', 'dims'];
+  const rows = indexes.map((i) => [i.name, i.chunks, i.graphFiles, i.dimensions].map(String));
+  const widths = header.map((h, col) => Math.max(h.length, ...rows.map((r) => r[col]!.length)));
+  const format = (cells: string[]) =>
+    cells
+      .map((cell, col) => (col === 0 ? cell.padEnd(widths[col]!) : cell.padStart(widths[col]!)))
+      .join('  ')
+      .trimEnd();
+  return [format(header), ...rows.map(format)].join('\n') + '\n';
 }
 
 function assertDirectory(target: string): void {
@@ -153,6 +186,7 @@ function formatReindexed(stats: IndexStats, paths: string[]): string {
 interface WatchSession {
   target: string;
   runtime: Runtime;
+  index: string;
   maxFileSize?: number;
   debounceMs?: number;
   /** Where progress and errors go. `serve` needs this to be stderr. */
@@ -174,7 +208,7 @@ async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
       embeddings: runtime.embeddings,
       ...(session.maxFileSize === undefined ? {} : { maxFileSize: session.maxFileSize }),
     });
-  log(formatIndexStats(await indexOnce()));
+  log(formatIndexStats(await indexOnce(), session.index));
   log(`Watching ${target} for changes (Ctrl+C to stop)\n`);
 
   let isIgnored = await loadIgnoreFilter(target);
@@ -227,19 +261,22 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       throw error;
     });
 
-  program
-    .command('index')
-    .description('Embed a directory into the vector store, re-embedding only changed files')
-    .argument('<path>', 'directory to index')
-    .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
-    .option('--dry-run', 'only walk the directory and summarise files by language')
-    .action(async (target: string, options: { maxFileSize?: number; dryRun?: boolean }) => {
+  withIndexOption(
+    program
+      .command('index')
+      .description('Embed a directory into the vector store, re-embedding only changed files')
+      .argument('<path>', 'directory to index')
+      .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
+      .option('--dry-run', 'only walk the directory and summarise files by language'),
+  ).action(
+    async (target: string, options: { maxFileSize?: number; dryRun?: boolean; index?: string }) => {
       try {
         if (options.dryRun) {
           await runDryRun(target, options.maxFileSize, io);
           return;
         }
-        const { store, graph, embeddings } = deps.createRuntime();
+        const index = resolveIndexName(options.index);
+        const { store, graph, embeddings } = deps.createRuntime(options.index);
         const stats = await indexRepository({
           root: target,
           store,
@@ -247,65 +284,76 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
           embeddings,
           ...(options.maxFileSize === undefined ? {} : { maxFileSize: options.maxFileSize }),
         });
-        io.out(formatIndexStats(stats));
+        io.out(formatIndexStats(stats, index));
       } catch (error) {
         fail(io, error);
       }
-    });
+    },
+  );
 
-  program
-    .command('search')
-    .description('Search the index with a natural-language query')
-    .argument('<query>', 'what to look for')
-    .option('-n, --limit <count>', 'number of results', parsePositiveInt, 5)
-    .option('--path <prefix>', 'only files under this directory, e.g. src/')
-    .option('--language <name>', 'only this language, e.g. typescript')
-    .option('--semantic', 'vector similarity only, without boosting exact symbol names')
-    .action(
-      async (
-        query: string,
-        options: { limit: number; path?: string; language?: string; semantic?: boolean },
-      ) => {
-        try {
-          const { store, embeddings } = deps.createRuntime();
-          const filter = {
-            ...(options.path === undefined ? {} : { pathPrefix: options.path }),
-            ...(options.language === undefined ? {} : { language: options.language }),
-          };
-          const mode: SearchMode = options.semantic ? 'semantic' : 'hybrid';
-          const hits = await searchIndex({
-            store,
-            embeddings,
-            query,
-            limit: options.limit,
-            filter,
-            mode,
-          });
-          io.out(formatHits(hits));
-        } catch (error) {
-          fail(io, error);
-        }
+  withIndexOption(
+    program
+      .command('search')
+      .description('Search the index with a natural-language query')
+      .argument('<query>', 'what to look for')
+      .option('-n, --limit <count>', 'number of results', parsePositiveInt, 5)
+      .option('--path <prefix>', 'only files under this directory, e.g. src/')
+      .option('--language <name>', 'only this language, e.g. typescript')
+      .option('--semantic', 'vector similarity only, without boosting exact symbol names'),
+  ).action(
+    async (
+      query: string,
+      options: {
+        limit: number;
+        path?: string;
+        language?: string;
+        semantic?: boolean;
+        index?: string;
       },
-    );
+    ) => {
+      try {
+        const { store, embeddings } = deps.createRuntime(options.index);
+        const filter = {
+          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+          ...(options.language === undefined ? {} : { language: options.language }),
+        };
+        const mode: SearchMode = options.semantic ? 'semantic' : 'hybrid';
+        const hits = await searchIndex({
+          store,
+          embeddings,
+          query,
+          limit: options.limit,
+          filter,
+          mode,
+        });
+        io.out(formatHits(hits));
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
 
-  program
-    .command('watch')
-    .description('Index a directory, then re-index changed files while you edit')
-    .argument('<path>', 'directory to watch')
-    .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
-    .option(
-      '--debounce <ms>',
-      'quiet period after the last change before re-indexing',
-      parsePositiveInt,
-      300,
-    )
-    .action(async (target: string, options: { maxFileSize?: number; debounce: number }) => {
+  withIndexOption(
+    program
+      .command('watch')
+      .description('Index a directory, then re-index changed files while you edit')
+      .argument('<path>', 'directory to watch')
+      .option('--max-file-size <bytes>', 'skip files larger than this many bytes', parsePositiveInt)
+      .option(
+        '--debounce <ms>',
+        'quiet period after the last change before re-indexing',
+        parsePositiveInt,
+        300,
+      ),
+  ).action(
+    async (target: string, options: { maxFileSize?: number; debounce: number; index?: string }) => {
       try {
         assertDirectory(target);
         await indexAndWatch(
           {
             target,
-            runtime: deps.createRuntime(),
+            index: resolveIndexName(options.index),
+            runtime: deps.createRuntime(options.index),
             debounceMs: options.debounce,
             log: io.out,
             logError: io.err,
@@ -316,97 +364,153 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       } catch (error) {
         fail(io, error);
       }
-    });
+    },
+  );
 
-  program
-    .command('serve')
-    .description('Serve the index to an MCP client over stdio (search_code, get_symbol, ...)')
-    .option('--watch <path>', 'index this directory first and keep the index fresh while serving')
-    .action(async (options: { watch?: string }) => {
-      try {
-        const runtime = deps.createRuntime();
-        if (options.watch !== undefined) {
-          assertDirectory(options.watch);
-          // stdout carries the MCP protocol, so all watch output goes to stderr.
-          await indexAndWatch(
-            { target: options.watch, runtime, log: io.err, logError: io.err },
-            deps,
-          );
-        }
-        await deps.serve(runtime, readVersion());
-      } catch (error) {
-        fail(io, error);
-      }
-    });
-
-  program
-    .command('map')
-    .description('Write a self-contained interactive HTML map of file dependencies')
-    .option('-o, --output <file>', 'where to write the HTML file', 'repolens-map.html')
-    .option('--path <prefix>', 'only files under this directory, e.g. src/')
-    .action(async (options: { output: string; path?: string }) => {
-      try {
-        const { store, graph } = deps.createRuntime();
-        const data = await buildMapData(store, graph, {
-          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
-        });
-        if (data.nodes.length === 0) {
-          throw new Error('The index has no files to map. Run `repolens index <path>` first.');
-        }
-        const html = renderMapHtml(data, {
-          title: options.path ? `repolens map: ${options.path}` : 'repolens map',
-          generatedAt: new Date().toISOString(),
-        });
-        const target = path.resolve(options.output);
-        mkdirSync(path.dirname(target), { recursive: true });
-        writeFileSync(target, html);
-        io.out(
-          `Wrote ${target}\n${data.nodes.length} files, ${data.links.length} links, ${data.unresolvedImports} unresolved imports\n`,
+  withIndexOption(
+    program
+      .command('serve')
+      .description('Serve the index to an MCP client over stdio (search_code, get_symbol, ...)')
+      .option(
+        '--watch <path>',
+        'index this directory first and keep the index fresh while serving',
+      ),
+  ).action(async (options: { watch?: string; index?: string }) => {
+    try {
+      const runtime = deps.createRuntime(options.index);
+      if (options.watch !== undefined) {
+        assertDirectory(options.watch);
+        // stdout carries the MCP protocol, so all watch output goes to stderr.
+        await indexAndWatch(
+          {
+            target: options.watch,
+            index: resolveIndexName(options.index),
+            runtime,
+            log: io.err,
+            logError: io.err,
+          },
+          deps,
         );
+      }
+      await deps.serve(runtime, readVersion());
+    } catch (error) {
+      fail(io, error);
+    }
+  });
+
+  withIndexOption(
+    program
+      .command('map')
+      .description('Write a self-contained interactive HTML map of file dependencies')
+      .option('-o, --output <file>', 'where to write the HTML file', 'repolens-map.html')
+      .option('--path <prefix>', 'only files under this directory, e.g. src/'),
+  ).action(async (options: { output: string; path?: string; index?: string }) => {
+    try {
+      const { store, graph } = deps.createRuntime(options.index);
+      const data = await buildMapData(store, graph, {
+        ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+      });
+      if (data.nodes.length === 0) {
+        throw new Error('The index has no files to map. Run `repolens index <path>` first.');
+      }
+      const html = renderMapHtml(data, {
+        title: options.path ? `repolens map: ${options.path}` : 'repolens map',
+        generatedAt: new Date().toISOString(),
+      });
+      const target = path.resolve(options.output);
+      mkdirSync(path.dirname(target), { recursive: true });
+      writeFileSync(target, html);
+      io.out(
+        `Wrote ${target}\n${data.nodes.length} files, ${data.links.length} links, ${data.unresolvedImports} unresolved imports\n`,
+      );
+    } catch (error) {
+      fail(io, error);
+    }
+  });
+
+  withIndexOption(
+    program
+      .command('bench')
+      .description(
+        'Measure index time, search latency and recall on a directory with a queries file',
+      )
+      .argument('<path>', 'directory to index')
+      .requiredOption('--queries <file>', 'JSON file: [{ "query": "...", "expect": ["src/a.ts"] }]')
+      .option('-n, --limit <count>', 'top results that count for recall', parsePositiveInt, 5)
+      .option('--mode <mode>', 'search mode: hybrid or semantic', parseSearchMode, 'hybrid')
+      .option('--label <text>', 'heading for the markdown result', 'benchmark')
+      .option(
+        '--qdrant',
+        'use the Qdrant collection from QDRANT_URL instead of an in-memory store',
+      ),
+    'index name with --qdrant (default: REPOLENS_INDEX or "repolens"); ignored for the in-memory store',
+  ).action(
+    async (
+      target: string,
+      options: {
+        queries: string;
+        limit: number;
+        mode: SearchMode;
+        label: string;
+        qdrant?: boolean;
+        index?: string;
+      },
+    ) => {
+      try {
+        const queries = parseQueries(readFileSync(options.queries, 'utf8'));
+        const { store, embeddings } = options.qdrant
+          ? deps.createRuntime(options.index)
+          : { store: new InMemoryVectorStore(), embeddings: deps.createEmbeddings() };
+        const result = await runBenchmark({
+          root: target,
+          store,
+          embeddings,
+          queries,
+          limit: options.limit,
+          mode: options.mode,
+        });
+        io.out(formatBenchmark(result, options.label));
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
+
+  program
+    .command('indexes')
+    .description('List the indexes in Qdrant')
+    .action(async () => {
+      try {
+        io.out(formatIndexes(await deps.listIndexes()));
       } catch (error) {
         fail(io, error);
       }
     });
 
   program
-    .command('bench')
-    .description('Measure index time, search latency and recall on a directory with a queries file')
-    .argument('<path>', 'directory to index')
-    .requiredOption('--queries <file>', 'JSON file: [{ "query": "...", "expect": ["src/a.ts"] }]')
-    .option('-n, --limit <count>', 'top results that count for recall', parsePositiveInt, 5)
-    .option('--mode <mode>', 'search mode: hybrid or semantic', parseSearchMode, 'hybrid')
-    .option('--label <text>', 'heading for the markdown result', 'benchmark')
-    .option('--qdrant', 'use the Qdrant collection from QDRANT_URL instead of an in-memory store')
-    .action(
-      async (
-        target: string,
-        options: {
-          queries: string;
-          limit: number;
-          mode: SearchMode;
-          label: string;
-          qdrant?: boolean;
-        },
-      ) => {
-        try {
-          const queries = parseQueries(readFileSync(options.queries, 'utf8'));
-          const { store, embeddings } = options.qdrant
-            ? deps.createRuntime()
-            : { store: new InMemoryVectorStore(), embeddings: deps.createEmbeddings() };
-          const result = await runBenchmark({
-            root: target,
-            store,
-            embeddings,
-            queries,
-            limit: options.limit,
-            mode: options.mode,
-          });
-          io.out(formatBenchmark(result, options.label));
-        } catch (error) {
-          fail(io, error);
+    .command('drop')
+    .description('Delete an index (its chunks and its graph)')
+    .argument('<name>', 'index to delete')
+    .option('--yes', 'confirm the deletion')
+    .action(async (name: string, options: { yes?: boolean }) => {
+      try {
+        validateIndexName(name);
+        if (!options.yes) {
+          io.err(`This deletes index "${name}" and its graph. Run again with --yes to confirm.\n`);
+          process.exitCode = 1;
+          return;
         }
-      },
-    );
+        const dropped = await deps.dropIndex(name);
+        if (!dropped.chunks && !dropped.graph) {
+          io.err(`No index named "${name}".\n`);
+          process.exitCode = 1;
+          return;
+        }
+        io.out(`Dropped index "${name}".\n`);
+      } catch (error) {
+        fail(io, error);
+      }
+    });
 
   program
     .command('doctor')

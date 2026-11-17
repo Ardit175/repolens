@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProgram, main, type Deps } from './cli.js';
 import { InMemoryGraphStore } from './graph/store.js';
+import type { IndexInfo } from './indexes.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
@@ -154,6 +155,10 @@ describe('repolens index, search and doctor with a store', () => {
   const sigintListeners = process.listeners('SIGINT');
   afterEach(() => {
     watchCalls.length = 0;
+    requestedIndexes.length = 0;
+    dropCalls.length = 0;
+    indexInfos = [];
+    dropResult = { chunks: true, graph: true };
     watcherClosed.count = 0;
     exitCodes.length = 0;
     for (const l of process.listeners('SIGINT')) {
@@ -161,16 +166,30 @@ describe('repolens index, search and doctor with a store', () => {
     }
     vi.restoreAllMocks();
   });
+  const requestedIndexes: (string | undefined)[] = [];
+  const dropCalls: string[] = [];
+  let indexInfos: IndexInfo[] = [];
+  let dropResult = { chunks: true, graph: true };
+  const dropIndex = async (name: string) => {
+    dropCalls.push(name);
+    return dropResult;
+  };
   const memory = () => {
     const store = new InMemoryVectorStore();
     const embeddings = new FakeEmbeddingProvider();
     const graph = new InMemoryGraphStore();
+    const createRuntime = (index?: string) => {
+      requestedIndexes.push(index);
+      return { store, graph, embeddings };
+    };
     return {
       store,
       graph,
       deps: {
-        createRuntime: () => ({ store, graph, embeddings }),
+        createRuntime,
         createEmbeddings: () => embeddings,
+        listIndexes: async () => indexInfos,
+        dropIndex,
         serve,
         watch,
         exit,
@@ -293,6 +312,8 @@ describe('repolens index, search and doctor with a store', () => {
         throw new Error('QDRANT_URL is not set.');
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
+      listIndexes: async () => indexInfos,
+      dropIndex,
       serve,
       watch,
       exit,
@@ -314,6 +335,8 @@ describe('repolens index, search and doctor with a store', () => {
         throw new Error('QDRANT_URL is not set.');
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
+      listIndexes: async () => indexInfos,
+      dropIndex,
       serve,
       watch,
       exit,
@@ -512,6 +535,161 @@ describe('repolens index, search and doctor with a store', () => {
     await runWith(deps, 'bench', dir, '--queries', path.join(dir, 'queries.json'));
     expect(err).toContain('non-empty JSON array');
     expect(process.exitCode).toBe(1);
+  });
+
+  describe('named indexes', () => {
+    it.each([
+      ['index', (d: string) => ['index', d]],
+      ['search', () => ['search', 'x']],
+      ['watch', (d: string) => ['watch', d]],
+      ['serve', () => ['serve']],
+      ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
+      ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
+    ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {
+      const { deps } = memory();
+      write('q.json', '[{"query":"x","expect":["a.ts"]}]');
+      await runWith(deps, ...args(dir), '--index', 'team-a');
+      expect(requestedIndexes).toEqual(['team-a']);
+      requestedIndexes.length = 0;
+      await runWith(deps, ...args(dir));
+      expect(requestedIndexes).toEqual([undefined]);
+    });
+
+    it('bench without --qdrant ignores --index', async () => {
+      const { deps } = memory();
+      write('q.json', '[{"query":"x","expect":["a.ts"]}]');
+      await runWith(deps, 'bench', dir, '--queries', path.join(dir, 'q.json'), '--index', 'x');
+      expect(requestedIndexes).toEqual([]);
+    });
+
+    it('rejects an invalid --index through the real runtime', async () => {
+      await run('search', 'x', '--index', 'a b');
+      expect(err).toMatch(/^error: .*a b/);
+      expect(process.exitCode).toBe(1);
+      expect(out).toBe('');
+    });
+
+    it('rejects an invalid --index on index before touching the store', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'index', dir, '--index', 'a b');
+      expect(err).toMatch(/^error: /);
+      expect(process.exitCode).toBe(1);
+      expect(requestedIndexes).toEqual([]);
+    });
+
+    it('index prints the index name first', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'index', dir, '--index', 'team-a');
+      expect(out.split('\n')[0]).toBe('Index: team-a');
+    });
+
+    it('index falls back to REPOLENS_INDEX, then to the default name', async () => {
+      const { deps } = memory();
+      const saved = process.env.REPOLENS_INDEX;
+      try {
+        process.env.REPOLENS_INDEX = 'from-env';
+        await runWith(deps, 'index', dir);
+        expect(out.split('\n')[0]).toBe('Index: from-env');
+        out = '';
+        delete process.env.REPOLENS_INDEX;
+        await runWith(deps, 'index', dir);
+        expect(out.split('\n')[0]).toBe('Index: repolens');
+      } finally {
+        if (saved === undefined) delete process.env.REPOLENS_INDEX;
+        else process.env.REPOLENS_INDEX = saved;
+      }
+    });
+
+    it('watch and serve --watch print the index name', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'watch', dir, '--index', 'w');
+      expect(out).toContain('Index: w\n');
+      served.length = 0;
+      err = '';
+      await runWith(deps, 'serve', '--watch', dir, '--index', 's');
+      expect(err).toContain('Index: s\n');
+    });
+
+    it('indexes prints an aligned table', async () => {
+      const { deps } = memory();
+      indexInfos = [
+        { name: 'alpha', chunks: 1200, graphFiles: 80, dimensions: 384 },
+        { name: 'repolens', chunks: 5, graphFiles: 2, dimensions: 1536 },
+      ];
+      await runWith(deps, 'indexes');
+      expect(out).toBe(
+        [
+          'name      chunks  files  dims',
+          'alpha       1200     80   384',
+          'repolens       5      2  1536',
+          '',
+        ].join('\n'),
+      );
+    });
+
+    it('indexes explains when there are none', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'indexes');
+      expect(out).toBe('No indexes yet. Run `repolens index <path>` to create one.\n');
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('indexes reports errors', async () => {
+      const { deps } = memory();
+      await runWith(
+        { ...deps, listIndexes: () => Promise.reject(new Error('qdrant down')) },
+        'indexes',
+      );
+      expect(err).toBe('error: qdrant down\n');
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('drop without --yes asks for confirmation and deletes nothing', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'drop', 'old');
+      expect(err).toBe(
+        'This deletes index "old" and its graph. Run again with --yes to confirm.\n',
+      );
+      expect(process.exitCode).toBe(1);
+      expect(dropCalls).toEqual([]);
+    });
+
+    it('drop --yes deletes an existing index', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'drop', 'old', '--yes');
+      expect(dropCalls).toEqual(['old']);
+      expect(out).toBe('Dropped index "old".\n');
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('drop --yes reports a missing index', async () => {
+      const { deps } = memory();
+      dropResult = { chunks: false, graph: false };
+      await runWith(deps, 'drop', 'ghost', '--yes');
+      expect(err).toBe('No index named "ghost".\n');
+      expect(out).toBe('');
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('drop validates the name before anything else', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'drop', 'a b', '--yes');
+      expect(err).toMatch(/^error: /);
+      expect(process.exitCode).toBe(1);
+      expect(dropCalls).toEqual([]);
+    });
+
+    it('drop reports errors from Qdrant', async () => {
+      const { deps } = memory();
+      await runWith(
+        { ...deps, dropIndex: () => Promise.reject(new Error('boom')) },
+        'drop',
+        'x',
+        '--yes',
+      );
+      expect(err).toBe('error: boom\n');
+      expect(process.exitCode).toBe(1);
+    });
   });
 
   it('doctor exits 1 and prints the failing check', async () => {
