@@ -47,6 +47,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 - **Watch mode (2026-11-13):** no new dependency; Node 22's recursive `fs.watch` reports changes and each burst triggers the existing incremental `indexRepository` pass instead of patching single files. One code path for one-shot and watch indexing keeps them consistent, and unchanged files cost only a re-chunk, not an embedding call. `serve --watch` writes all progress to stderr because stdout carries the MCP protocol.
 - **Hybrid search (2026-11-14):** no new dependency and no keyword index. Code-like tokens in the query are looked up with the existing exact-name `findChunks`, and name matches are placed ahead of vector hits by a fixed rule instead of a fused score (such as reciprocal rank fusion). A caller who types an identifier wants that symbol, and a fixed rule is easy to predict and test. Plain words in a multi-word query are not looked up, so prose queries behave as before.
 - **Watch robustness and filtered name lookup (2026-11-16):** no new dependency. The watcher reuses the walker's ignore rules (`loadIgnoreFilter`) so both skip the same paths, and reloads them after each pass. A failed fs watcher is restarted at most 3 times over its lifetime, each with a catch-up pass; after that the process exits 1, because a server that keeps answering from a frozen index is worse than one that stops loudly. Exact-name lookups pass path, language and parent filters to the store (`ChunkQuery`) instead of filtering after the limit.
+- **Named indexes (2026-11-17):** no new dependency. Each index is one collection pair (`<name>` and `<name>_graph`) instead of a repo-id field in a shared collection. The indexer's stale-path cleanup and the vector size are per collection, so separate collections keep repos and providers isolated with no change to the store or the indexer. The default name `repolens` keeps existing indexes working. `drop` needs `--yes` because it deletes both collections with no undo.
 
 ## Environment variables
 | Name | Used for | Required |
@@ -55,6 +56,7 @@ Answers from Ardit's setup interview (2026-10-05). Later runs follow these witho
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI key | for Azure embeddings |
 | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | deployment name of text-embedding-3-small | for Azure embeddings |
 | `QDRANT_URL` | e.g. `http://localhost:6333` | for the persistent store |
+| `REPOLENS_INDEX` | index name (one per repository or provider), default `repolens` | no |
 | `NPM_TOKEN` | publishing (GitHub Actions secret) | M7 only |
 
 Ardit adds these as environment variables in the cloud environment settings and as GitHub repo secrets. They never go in chat or in the repo.
