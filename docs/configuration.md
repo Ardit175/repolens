@@ -26,6 +26,7 @@ Each index name maps to two Qdrant collections: `<name>` holds the chunks and `<
 | `repolens serve`                         | Serves the index over MCP on stdio; `--watch <path>` indexes and keeps it fresh                    |
 | `repolens map`                           | Writes a self-contained HTML dependency map; `-o` output file, `--path` prefix filter              |
 | `repolens bench <path> --queries <file>` | Index time, search latency and recall; `--mode hybrid\|semantic` (see [benchmarks](benchmarks.md)) |
+| `repolens status`                        | Shows file, chunk and language counts, provider, vector size and warnings for one index; `--json`  |
 | `repolens indexes`                       | Lists the indexes in Qdrant with chunk, file and dimension counts                                  |
 | `repolens drop <name> --yes`             | Deletes an index and its graph; refuses without `--yes`                                            |
 
