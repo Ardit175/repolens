@@ -19,15 +19,15 @@ function cosine(a: number[], b: number[]): number {
 
 export class InMemoryVectorStore implements VectorStore {
   private readonly items = new Map<string, StoredChunk>();
-  private dimensions: number | undefined;
+  private vectorSize: number | undefined;
 
   async ensureCollection(dimensions: number): Promise<void> {
-    if (this.dimensions !== undefined && this.dimensions !== dimensions) {
+    if (this.vectorSize !== undefined && this.vectorSize !== dimensions) {
       throw new Error(
-        `Collection has ${this.dimensions} dimensions, but ${dimensions} were requested`,
+        `Collection has ${this.vectorSize} dimensions, but ${dimensions} were requested`,
       );
     }
-    this.dimensions = dimensions;
+    this.vectorSize = dimensions;
   }
 
   async upsert(items: StoredChunk[]): Promise<void> {
@@ -84,10 +84,14 @@ export class InMemoryVectorStore implements VectorStore {
     return this.items.size;
   }
 
+  async dimensions(): Promise<number | undefined> {
+    return this.vectorSize;
+  }
+
   private checkDimensions(actual: number): void {
-    if (this.dimensions !== undefined && actual !== this.dimensions) {
+    if (this.vectorSize !== undefined && actual !== this.vectorSize) {
       throw new Error(
-        `Vector has ${actual} dimensions, but the collection expects ${this.dimensions}`,
+        `Vector has ${actual} dimensions, but the collection expects ${this.vectorSize}`,
       );
     }
   }

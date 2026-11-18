@@ -41,6 +41,13 @@ export function runVectorStoreContract(name: string, makeStore: () => Promise<Ve
       await expect(store.ensureCollection(5)).rejects.toThrow();
     });
 
+    it('reports dimensions after ensureCollection', async () => {
+      const fresh = await makeStore();
+      expect(await fresh.dimensions()).toBeUndefined();
+      await fresh.ensureCollection(3);
+      expect(await fresh.dimensions()).toBe(3);
+    });
+
     it('ranks search hits by cosine similarity', async () => {
       const a = makeChunk('src/a.ts');
       const b = makeChunk('src/b.ts');

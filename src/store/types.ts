@@ -45,4 +45,6 @@ export interface VectorStore {
    */
   findChunks(query: ChunkQuery): Promise<Chunk[]>;
   count(): Promise<number>;
+  /** Vector size of the collection, or undefined when the collection does not exist yet. */
+  dimensions(): Promise<number | undefined>;
 }

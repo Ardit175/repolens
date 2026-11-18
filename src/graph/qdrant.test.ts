@@ -117,6 +117,12 @@ describe('QdrantGraphStore', () => {
       });
       expect(calls[1]!.body.offset).toBe('p2');
     });
+
+    it('treats a missing collection as empty', async () => {
+      const { store } = setup([json({}, 404), json({}, 404)]);
+      expect(await store.listHashes()).toEqual(new Map());
+      expect(await store.findEdges({ target: 'login' })).toEqual([]);
+    });
   });
 
   describe('findEdges', () => {
