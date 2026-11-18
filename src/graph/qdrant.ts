@@ -108,14 +108,21 @@ export class QdrantGraphStore implements GraphStore {
   ): Promise<void> {
     let offset: string | number | null | undefined;
     do {
-      const response = await this.send('POST', '/points/scroll', {
-        limit: SCROLL_PAGE_SIZE,
-        with_payload: withPayload,
-        with_vector: false,
-        filter,
-        ...(offset !== undefined && offset !== null ? { offset } : {}),
-      });
-      const body = (await response!.json()) as { result: ScrollResult };
+      const response = await this.send(
+        'POST',
+        '/points/scroll',
+        {
+          limit: SCROLL_PAGE_SIZE,
+          with_payload: withPayload,
+          with_vector: false,
+          filter,
+          ...(offset !== undefined && offset !== null ? { offset } : {}),
+        },
+        [404],
+      );
+      // A graph collection that does not exist yet holds no edges.
+      if (!response) return;
+      const body = (await response.json()) as { result: ScrollResult };
       for (const point of body.result.points) {
         if (point.payload) onPayload(point.payload);
       }

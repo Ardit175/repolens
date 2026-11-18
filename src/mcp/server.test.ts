@@ -24,7 +24,7 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the six tools with schemas', async () => {
+  it('identifies itself and advertises the seven tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -32,6 +32,7 @@ describe('repolens MCP server', () => {
       'file_context',
       'find_references',
       'get_symbol',
+      'index_status',
       'list_files',
       'search_code',
     ]);
@@ -67,6 +68,16 @@ describe('repolens MCP server', () => {
     const missing = await call('get_symbol', { name: 'nothing' });
     expect(missing.isError).toBe(true);
     expect(missing.text).toContain('No symbol named "nothing"');
+  });
+
+  it('index_status describes the index and takes no input', async () => {
+    const { isError, text } = await call('index_status', {});
+    expect(isError).toBe(false);
+    expect(text).toContain('Index: test');
+    expect(text).toContain('Files: 3');
+    expect(text).toContain('Watching: no');
+    const tool = (await client.listTools()).tools.find((t) => t.name === 'index_status');
+    expect(tool?.annotations?.readOnlyHint).toBe(true);
   });
 
   it('list_files lists and filters', async () => {

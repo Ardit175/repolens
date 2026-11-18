@@ -81,5 +81,5 @@ export async function seededRuntime(): Promise<Runtime> {
   const graph = new InMemoryGraphStore();
   for (const [path, edges] of Object.entries(EDGES))
     await graph.replaceFile(path, 'fixture', edges);
-  return { store, graph, embeddings };
+  return { index: 'test', store, graph, embeddings };
 }

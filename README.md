@@ -45,6 +45,7 @@ Each index name has its own pair of Qdrant collections, so indexing a second rep
 npm run dev -- index ~/code/web --index web
 npm run dev -- search "where is the cart total computed?" --index web
 npm run dev -- indexes                    # every index, with chunk and file counts
+npm run dev -- status --index web         # one index: counts, languages, embeddings, warnings (--json for raw output)
 npm run dev -- drop web --yes             # deletes the index and its graph
 ```
 
@@ -66,6 +67,7 @@ claude mcp add web --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/re
 | `file_context`    | One file as an outline of its symbols followed by their code                                                               |
 | `find_references` | Every import of and call to a name, with file, line and calling symbol; optional `limit` (1-200)                           |
 | `call_graph`      | Callers or callees of a function as an indented tree; `direction` (`callers` default, `callees`), `depth` (1-5, default 2) |
+| `index_status`    | Index name, embedding provider, file and chunk counts, watcher state and warnings (no arguments)                           |
 
 `find_references` and `call_graph` match by name only. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together.
 

@@ -41,6 +41,15 @@ export class QdrantVectorStore implements VectorStore {
     this.fetchFn = config.fetch ?? fetch;
   }
 
+  async dimensions(): Promise<number | undefined> {
+    const existing = await this.send('GET', '', undefined, [404]);
+    if (!existing) return undefined;
+    const body = (await existing.json()) as {
+      result?: { config?: { params?: { vectors?: { size?: number } } } };
+    };
+    return body.result?.config?.params?.vectors?.size;
+  }
+
   async ensureCollection(dimensions: number): Promise<void> {
     const existing = await this.send('GET', '', undefined, [404]);
     if (existing) {

@@ -2,6 +2,7 @@ import type { Chunk } from '../chunker/types.js';
 import type { GraphEdge } from '../graph/types.js';
 import type { Runtime } from '../runtime.js';
 import { describeMatch, searchIndex, type SearchMode } from '../search.js';
+import { formatIndexStatus, getIndexStatus } from '../status.js';
 
 /** Raised for a request that is valid but has no answer, for example an unknown symbol. */
 export class ToolError extends Error {}
@@ -275,4 +276,16 @@ export async function callGraph(runtime: Runtime, input: CallGraphInput): Promis
     out.push(NAME_ONLY_NOTE);
   }
   return out.join('\n');
+}
+
+/** Describes the index this server answers from and whether a watcher keeps it fresh. */
+export async function indexStatus(runtime: Runtime): Promise<string> {
+  const status = await getIndexStatus({
+    index: runtime.index,
+    store: runtime.store,
+    graph: runtime.graph,
+    embeddings: runtime.embeddings,
+    watch: runtime.watch,
+  });
+  return formatIndexStatus(status);
 }

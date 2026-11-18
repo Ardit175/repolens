@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProgram, main, type Deps } from './cli.js';
 import { InMemoryGraphStore } from './graph/store.js';
-import type { IndexInfo } from './indexes.js';
+import { resolveIndexName, type IndexInfo } from './indexes.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { FakeEmbeddingProvider } from './testing.js';
@@ -180,7 +180,7 @@ describe('repolens index, search and doctor with a store', () => {
     const graph = new InMemoryGraphStore();
     const createRuntime = (index?: string) => {
       requestedIndexes.push(index);
-      return { store, graph, embeddings };
+      return { index: resolveIndexName(index), store, graph, embeddings };
     };
     return {
       store,
@@ -482,6 +482,81 @@ describe('repolens index, search and doctor with a store', () => {
     expect(err).toContain('Re-indexed: 1 changed');
   });
 
+  it('serve --watch records watcher progress on the runtime it serves', async () => {
+    const { deps } = memory();
+    let served: Runtime | undefined;
+    write('a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(
+      {
+        ...deps,
+        serve: async (runtime) => {
+          served = runtime;
+        },
+      },
+      'serve',
+      '--watch',
+      dir,
+    );
+    expect(served?.watch).toMatchObject({ root: dir, passes: 1 });
+    expect(served?.watch?.lastPassAt).toBeInstanceOf(Date);
+    watchCalls[0]!.onError?.(new Error('embedding failed'));
+    expect(served?.watch?.lastError).toBe('embedding failed');
+    expect(served?.watch?.lastErrorAt).toBeInstanceOf(Date);
+    watchCalls[0]!.onIndexed?.(await watchCalls[0]!.reindex(), []);
+    expect(served?.watch?.passes).toBe(2);
+    expect(served?.watch?.lastError).toBeUndefined();
+    expect(served?.watch?.lastErrorAt).toBeUndefined();
+  });
+
+  it('status prints the size and health of an index', async () => {
+    const { deps } = memory();
+    write('a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(deps, 'index', dir, '--index', 's');
+    out = '';
+    await runWith(deps, 'status', '--index', 's');
+    expect(out).toContain('Index: s');
+    expect(out).toContain('Files: 1 (1 chunk)');
+    expect(out).toContain('Watching: no');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('status warns about an empty index and still exits 0', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'status');
+    expect(out).toContain('Warnings:');
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('status --json prints parseable JSON', async () => {
+    const { deps } = memory();
+    write('a.ts', 'export function alpha() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'status', '--json');
+    const status = JSON.parse(out) as { index: string; files: number; warnings: string[] };
+    expect(status).toMatchObject({ index: 'repolens', files: 1, warnings: [] });
+  });
+
+  it('status rejects an invalid --index and reports runtime errors', async () => {
+    const { deps } = memory();
+    await runWith(deps, 'status', '--index', 'bad!name');
+    expect(err).toMatch(/^error: /);
+    expect(process.exitCode).toBe(1);
+    expect(out).toBe('');
+    err = '';
+    await runWith(
+      {
+        ...deps,
+        createRuntime: () => {
+          throw new Error('QDRANT_URL is not set.');
+        },
+      },
+      'status',
+    );
+    expect(err).toContain('QDRANT_URL is not set.');
+  });
+
   it('serve without --watch does not start a watcher', async () => {
     const { deps } = memory();
     await runWith(deps, 'serve');
@@ -543,6 +618,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['search', () => ['search', 'x']],
       ['watch', (d: string) => ['watch', d]],
       ['serve', () => ['serve']],
+      ['status', () => ['status']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {

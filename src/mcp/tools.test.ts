@@ -8,6 +8,7 @@ import {
   fileContext,
   findReferences,
   getSymbol,
+  indexStatus,
   listFiles,
   MAX_GRAPH_LEVEL_NODES,
   searchCode,
@@ -206,5 +207,26 @@ describe('callGraph', () => {
       'search_code',
     );
     await expect(callGraph(runtime, { name: '' })).rejects.toThrow('must not be empty');
+  });
+});
+
+describe('indexStatus', () => {
+  it('describes the seeded index without a watcher', async () => {
+    const text = await indexStatus(await seededRuntime());
+    expect(text).toContain('Index: test');
+    expect(text).toContain('Files: 3');
+    expect(text).toMatch(/typescript\D+2/);
+    expect(text).toMatch(/python\D+1/);
+    expect(text).toContain('Symbol graph: 2 files');
+    expect(text).toContain('Watching: no');
+  });
+
+  it('shows the watcher and its last error as a warning', async () => {
+    const watched = await seededRuntime();
+    watched.watch = { root: 'repo', passes: 2, lastPassAt: new Date(), lastError: 'boom' };
+    const text = await indexStatus(watched);
+    expect(text).toContain('Watching: repo, 2 passes');
+    expect(text).toContain('Warnings:');
+    expect(text).toContain('boom');
   });
 });

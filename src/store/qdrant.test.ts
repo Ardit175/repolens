@@ -67,6 +67,22 @@ describe('QdrantVectorStore', () => {
     });
   });
 
+  describe('dimensions', () => {
+    it('reads the vector size of an existing collection', async () => {
+      const { store, calls } = setup([collectionInfo(384)]);
+      expect(await store.dimensions()).toBe(384);
+      expect(calls[0]).toMatchObject({
+        url: 'http://qdrant:6333/collections/repolens',
+        method: 'GET',
+      });
+    });
+
+    it('returns undefined when the collection does not exist', async () => {
+      const { store } = setup([json({}, 404)]);
+      expect(await store.dimensions()).toBeUndefined();
+    });
+  });
+
   describe('upsert', () => {
     it('sends points in batches of 100 with chunk payload and dir_prefixes', async () => {
       const items = Array.from({ length: 205 }, (_, i) =>
