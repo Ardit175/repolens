@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.0](https://github.com/Ardit175/repolens/compare/repolens-v0.10.0...repolens-v0.11.0) (2026-11-18)
+
+
+### Features
+
+* add the index_status MCP tool and the repolens status command ([4d5cb10](https://github.com/Ardit175/repolens/commit/4d5cb107df394e79be4668a970f909dc2827f65a))
+* index status tool and command ([47698f7](https://github.com/Ardit175/repolens/commit/47698f74221d4ca92a7b86b1770ea63f8141a3e6))
+* report stored vector size and read a missing graph collection as empty ([8d5e2f4](https://github.com/Ardit175/repolens/commit/8d5e2f46452c6f1830fb5704f67f00a824c05cbe))
+* summarise an index with counts, provider, watcher state and warnings ([92d2a9f](https://github.com/Ardit175/repolens/commit/92d2a9f2d8ec59ba362847506eb30996032899b2))
+
 ## [0.10.0](https://github.com/Ardit175/repolens/compare/repolens-v0.9.0...repolens-v0.10.0) (2026-11-17)
 
 
