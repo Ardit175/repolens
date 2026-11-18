@@ -39,6 +39,13 @@ describe('createRuntime', () => {
     expect(keys).toEqual(['k']);
   });
 
+  it('exposes the resolved index name', () => {
+    const base = { QDRANT_URL: 'http://qdrant:6333', REPOLENS_EMBEDDINGS: 'local' };
+    expect(createRuntime(base).index).toBe('repolens');
+    expect(createRuntime({ ...base, REPOLENS_INDEX: 'api' }).index).toBe('api');
+    expect(createRuntime({ ...base, REPOLENS_INDEX: 'api' }, { index: 'web' }).index).toBe('web');
+  });
+
   describe('named indexes', () => {
     async function collectUrls(run: () => Promise<void>): Promise<string[]> {
       const urls: string[] = [];

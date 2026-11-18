@@ -3,11 +3,16 @@ import { QdrantGraphStore } from './graph/store.js';
 import type { GraphStore } from './graph/types.js';
 import { graphCollection, qdrantConnection, resolveIndexName } from './indexes.js';
 import { QdrantVectorStore, type VectorStore } from './store/index.js';
+import type { WatchState } from './status.js';
 
 export interface Runtime {
+  /** The resolved index name. */
+  index: string;
   store: VectorStore;
   graph: GraphStore;
   embeddings: EmbeddingProvider;
+  /** Set while a watcher keeps this index fresh, so status reports can show it. */
+  watch?: WatchState;
 }
 
 /**
@@ -22,5 +27,5 @@ export function createRuntime(
   const connection = qdrantConnection(env);
   const store = new QdrantVectorStore({ ...connection, collection: index });
   const graph = new QdrantGraphStore({ ...connection, collection: graphCollection(index) });
-  return { store, graph, embeddings: createEmbeddingProvider(env) };
+  return { index, store, graph, embeddings: createEmbeddingProvider(env) };
 }

@@ -8,6 +8,7 @@ import {
   fileContext,
   findReferences,
   getSymbol,
+  indexStatus,
   listFiles,
   MAX_GRAPH_DEPTH,
   MAX_LIST_LIMIT,
@@ -129,6 +130,17 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => callGraph(runtime, input)),
+  );
+
+  server.registerTool(
+    'index_status',
+    {
+      description:
+        'Shows which index this server answers from: file, chunk and language counts, the embedding provider, symbol graph size, whether a watcher keeps it fresh and when it last re-indexed, and any problems such as an empty index.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    () => respond(() => indexStatus(runtime)),
   );
 
   return server;

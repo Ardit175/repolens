@@ -29,6 +29,7 @@ import {
   type IndexInfo,
 } from './indexes.js';
 import { createRuntime, type Runtime } from './runtime.js';
+import { formatIndexStatus, getIndexStatus, type WatchState } from './status.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex, type SearchMode } from './search.js';
 import { loadIgnoreFilter, walkFiles } from './walker.js';
@@ -200,6 +201,14 @@ interface WatchSession {
  */
 async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
   const { target, runtime, log, logError } = session;
+  const watchState: WatchState = { root: target, passes: 0 };
+  runtime.watch = watchState;
+  const recordPass = () => {
+    watchState.passes++;
+    watchState.lastPassAt = new Date();
+    delete watchState.lastError;
+    delete watchState.lastErrorAt;
+  };
   const indexOnce = () =>
     indexRepository({
       root: target,
@@ -209,6 +218,7 @@ async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
       ...(session.maxFileSize === undefined ? {} : { maxFileSize: session.maxFileSize }),
     });
   log(formatIndexStats(await indexOnce(), session.index));
+  recordPass();
   log(`Watching ${target} for changes (Ctrl+C to stop)\n`);
 
   let isIgnored = await loadIgnoreFilter(target);
@@ -226,11 +236,16 @@ async function indexAndWatch(session: WatchSession, deps: Deps): Promise<void> {
     isIgnored: (relativePath) => isIgnored(relativePath),
     ...(session.debounceMs === undefined ? {} : { debounceMs: session.debounceMs }),
     onIndexed: (stats, paths) => {
+      recordPass();
       if (stats.filesChanged + stats.filesRemoved + stats.graphFilesUpdated > 0) {
         log(formatReindexed(stats, paths));
       }
     },
-    onError: (error) => logError(`error: ${describeError(error)}\n`),
+    onError: (error) => {
+      watchState.lastError = describeError(error);
+      watchState.lastErrorAt = new Date();
+      logError(`error: ${describeError(error)}\n`);
+    },
     onFatal: (error) => {
       logError(`error: file watcher stopped: ${describeError(error)}\n`);
       deps.exit(1);
@@ -475,6 +490,21 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       }
     },
   );
+
+  withIndexOption(
+    program
+      .command('status')
+      .description('Show the size, provider and health of an index')
+      .option('--json', 'print the status as JSON'),
+  ).action(async (options: { json?: boolean; index?: string }) => {
+    try {
+      const { index, store, graph, embeddings } = deps.createRuntime(options.index);
+      const status = await getIndexStatus({ index, store, graph, embeddings });
+      io.out((options.json ? JSON.stringify(status, null, 2) : formatIndexStatus(status)) + '\n');
+    } catch (error) {
+      fail(io, error);
+    }
+  });
 
   program
     .command('indexes')
