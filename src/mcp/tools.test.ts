@@ -6,6 +6,7 @@ import type { GraphEdge } from '../graph/types.js';
 import {
   callGraph,
   fileContext,
+  fileDependencies,
   findReferences,
   getSymbol,
   indexStatus,
@@ -228,5 +229,25 @@ describe('indexStatus', () => {
     expect(text).toContain('Watching: repo, 2 passes');
     expect(text).toContain('Warnings:');
     expect(text).toContain('boom');
+  });
+});
+
+describe('fileDependencies', () => {
+  it('renders the dependencies of a file', async () => {
+    const text = await fileDependencies(runtime, { path: 'src/auth.ts', direction: 'imports' });
+    expect(text.split('\n')[0]).toBe('src/auth.ts');
+    expect(text).toContain("Imports (1):\n  src/db.ts  line 1  './db.js'");
+    expect(text).toContain('Imported by (0):');
+  });
+
+  it('shows importers', async () => {
+    const text = await fileDependencies(runtime, { path: 'src/db.ts', depth: 1 });
+    expect(text).toContain("Imported by (1):\n  src/auth.ts  line 1  './db.js'");
+  });
+
+  it('turns an unknown file into a ToolError with suggestions', async () => {
+    const failure = fileDependencies(runtime, { path: 'auth.ts' });
+    await expect(failure).rejects.toBeInstanceOf(ToolError);
+    await expect(failure).rejects.toThrow('Did you mean src/auth.ts?');
   });
 });

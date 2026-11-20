@@ -2,10 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { MAX_DEPS_DEPTH } from '../deps.js';
 import type { Runtime } from '../runtime.js';
 import {
   callGraph,
   fileContext,
+  fileDependencies,
   findReferences,
   getSymbol,
   indexStatus,
@@ -130,6 +132,30 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => callGraph(runtime, input)),
+  );
+
+  server.registerTool(
+    'file_dependencies',
+    {
+      description:
+        'Shows which indexed files a file imports and which files import it, with the line and module of each import and the unresolved imports of the file itself. Links are resolved by path only, so packages, C# namespaces and Swift modules are not linked.',
+      inputSchema: {
+        path: z.string().min(1).describe('Path relative to the indexed root, e.g. "src/auth.ts"'),
+        direction: z
+          .enum(['imports', 'importers', 'both'])
+          .optional()
+          .describe('imports = what it imports, importers = who imports it; default "both"'),
+        depth: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_DEPS_DEPTH)
+          .optional()
+          .describe('Levels to follow, default 1'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => fileDependencies(runtime, input)),
   );
 
   server.registerTool(
