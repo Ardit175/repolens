@@ -1,4 +1,10 @@
 import type { Chunk } from '../chunker/types.js';
+import {
+  formatFileDependencies,
+  getFileDependencies,
+  UnknownFileError,
+  type DependencyDirection,
+} from '../deps.js';
 import type { GraphEdge } from '../graph/types.js';
 import type { Runtime } from '../runtime.js';
 import { describeMatch, searchIndex, type SearchMode } from '../search.js';
@@ -288,4 +294,28 @@ export async function indexStatus(runtime: Runtime): Promise<string> {
     watch: runtime.watch,
   });
   return formatIndexStatus(status);
+}
+
+export interface FileDependenciesInput {
+  path: string;
+  direction?: DependencyDirection | undefined;
+  depth?: number | undefined;
+}
+
+/** The files a file imports and the files that import it, resolved by path against the index. */
+export async function fileDependencies(
+  runtime: Runtime,
+  input: FileDependenciesInput,
+): Promise<string> {
+  try {
+    const deps = await getFileDependencies(runtime.store, runtime.graph, {
+      path: input.path,
+      ...(input.direction === undefined ? {} : { direction: input.direction }),
+      ...(input.depth === undefined ? {} : { depth: input.depth }),
+    });
+    return formatFileDependencies(deps);
+  } catch (error) {
+    if (error instanceof UnknownFileError) throw new ToolError(error.message);
+    throw error;
+  }
 }

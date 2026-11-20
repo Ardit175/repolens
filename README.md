@@ -35,6 +35,8 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 - `map` writes one self-contained HTML file (no network needed to view it) with a zoomable graph of files and their imports. Search by path, filter by language, click a file to see what it imports and what imports it. `--path src/` limits it to a directory. Imports are linked by path for TS/JS, Python, C/C++ (`#include`), Ruby (`require`), PHP (`use` and `require`), Java/Kotlin/Scala (class paths under any source root), Go (packages of modules declared in an indexed `go.mod`) and Rust (`crate::`, `self::` and `super::` paths). Third-party packages, standard libraries, C# namespaces and Swift modules are counted as unresolved, not drawn.
 
+- `deps <file>` lists the indexed files a file imports and the files that import it, with the line and module of each import (`--direction imports|importers|both`, `--depth 1..5` default 1, `--json`). It uses the same path-based links as `map`, so packages, C# namespaces and Swift modules are not linked.
+
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
 ### Several repositories
@@ -46,6 +48,7 @@ npm run dev -- index ~/code/web --index web
 npm run dev -- search "where is the cart total computed?" --index web
 npm run dev -- indexes                    # every index, with chunk and file counts
 npm run dev -- status --index web         # one index: counts, languages, embeddings, warnings (--json for raw output)
+npm run dev -- deps src/auth.ts --index web --depth 2   # what src/auth.ts imports and what imports it (--json for raw output)
 npm run dev -- drop web --yes             # deletes the index and its graph
 ```
 
@@ -59,15 +62,16 @@ claude mcp add web --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/re
 
 `repolens serve` exposes the index over stdio. It needs the same `QDRANT_URL` (and embedding variables) as `search`, and an index built with `repolens index`. Add `--watch <path>` (for example `repolens serve --watch .`) to index that directory first and keep the index fresh while the server runs. Progress goes to stderr so the MCP stream on stdout stays clean.
 
-| Tool              | What it does                                                                                                               |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `search_code`     | Hybrid search; arguments `query`, optional `limit` (1-20), `path`, `language`, `mode` (`hybrid` or `semantic`)             |
-| `get_symbol`      | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path`                       |
-| `list_files`      | Indexed files, optionally under a `path` prefix, with a `limit`                                                            |
-| `file_context`    | One file as an outline of its symbols followed by their code                                                               |
-| `find_references` | Every import of and call to a name, with file, line and calling symbol; optional `limit` (1-200)                           |
-| `call_graph`      | Callers or callees of a function as an indented tree; `direction` (`callers` default, `callees`), `depth` (1-5, default 2) |
-| `index_status`    | Index name, embedding provider, file and chunk counts, watcher state and warnings (no arguments)                           |
+| Tool                | What it does                                                                                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_code`       | Hybrid search; arguments `query`, optional `limit` (1-20), `path`, `language`, `mode` (`hybrid` or `semantic`)                                                               |
+| `get_symbol`        | Code of a function, method, class or type by exact name (`AuthService.login` works); optional `path`                                                                         |
+| `list_files`        | Indexed files, optionally under a `path` prefix, with a `limit`                                                                                                              |
+| `file_context`      | One file as an outline of its symbols followed by their code                                                                                                                 |
+| `find_references`   | Every import of and call to a name, with file, line and calling symbol; optional `limit` (1-200)                                                                             |
+| `call_graph`        | Callers or callees of a function as an indented tree; `direction` (`callers` default, `callees`), `depth` (1-5, default 2)                                                   |
+| `file_dependencies` | Files a file imports and files that import it, with line and module of each import; `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1) |
+| `index_status`      | Index name, embedding provider, file and chunk counts, watcher state and warnings (no arguments)                                                                             |
 
 `find_references` and `call_graph` match by name only. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together.
 

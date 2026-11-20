@@ -557,6 +557,58 @@ describe('repolens index, search and doctor with a store', () => {
     expect(err).toContain('QDRANT_URL is not set.');
   });
 
+  it('deps prints what a file imports and who imports it', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'deps', 'src/a.ts');
+    expect(out).toContain("Imports (1):\n  src/b.ts  line 1  './b.js'");
+    expect(out).toContain('Imported by (0):');
+    expect(out.endsWith('\n')).toBe(true);
+    out = '';
+    await runWith(deps, 'deps', 'src/b.ts', '--direction', 'importers');
+    expect(out).toContain("Imported by (1):\n  src/a.ts  line 1  './b.js'");
+    expect(out).toContain('Imports (0):');
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('deps --json prints the dependencies as JSON', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'deps', 'src/a.ts', '--json', '--depth', '2');
+    const result = JSON.parse(out) as { path: string; imports: { path: string }[] };
+    expect(result.path).toBe('src/a.ts');
+    expect(result.imports.map((e) => e.path)).toEqual(['src/b.ts']);
+  });
+
+  it('deps reports an unknown file with exit code 1', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'deps', 'a.ts');
+    expect(err).toBe('error: a.ts is not indexed. Did you mean src/a.ts?\n');
+    expect(out).toBe('');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('deps rejects a bad --direction and a bad --depth', async () => {
+    await run('deps', 'a.ts', '--direction', 'sideways');
+    expect(err).toContain('must be "imports", "importers" or "both"');
+    expect(process.exitCode).toBe(1);
+    err = '';
+    await run('deps', 'a.ts', '--depth', '0');
+    expect(err).toContain('must be a positive integer');
+    err = '';
+    await run('deps', 'a.ts', '--depth', '6');
+    expect(err).toContain('must be at most 5');
+  });
+
   it('serve without --watch does not start a watcher', async () => {
     const { deps } = memory();
     await runWith(deps, 'serve');
@@ -619,6 +671,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['watch', (d: string) => ['watch', d]],
       ['serve', () => ['serve']],
       ['status', () => ['status']],
+      ['deps', () => ['deps', 'a.ts']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {

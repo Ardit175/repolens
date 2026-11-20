@@ -13,6 +13,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 import { formatBenchmark, parseQueries, runBenchmark } from './bench/bench.js';
+import {
+  DEFAULT_DEPS_DEPTH,
+  formatFileDependencies,
+  getFileDependencies,
+  MAX_DEPS_DEPTH,
+  type DependencyDirection,
+} from './deps.js';
 import { createEmbeddingProvider, type EmbeddingProvider } from './embeddings/index.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { indexRepository, type IndexStats } from './indexer.js';
@@ -92,6 +99,21 @@ function parseSearchMode(value: string): SearchMode {
     throw new InvalidArgumentError('must be "hybrid" or "semantic".');
   }
   return value;
+}
+
+function parseDirection(value: string): DependencyDirection {
+  if (value !== 'imports' && value !== 'importers' && value !== 'both') {
+    throw new InvalidArgumentError('must be "imports", "importers" or "both".');
+  }
+  return value;
+}
+
+function parseDepsDepth(value: string): number {
+  const depth = parsePositiveInt(value);
+  if (depth > MAX_DEPS_DEPTH) {
+    throw new InvalidArgumentError(`must be at most ${MAX_DEPS_DEPTH}.`);
+  }
+  return depth;
 }
 
 /** Reads only the start of a file and returns its first line. */
@@ -505,6 +527,45 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       fail(io, error);
     }
   });
+
+  withIndexOption(
+    program
+      .command('deps')
+      .description('Show which files a file imports and which files import it')
+      .argument('<file>', 'indexed path relative to the indexed root, e.g. src/auth.ts')
+      .option(
+        '--direction <direction>',
+        'imports, importers or both',
+        parseDirection,
+        'both' satisfies DependencyDirection,
+      )
+      .option(
+        '--depth <n>',
+        `levels to follow, 1 to ${MAX_DEPS_DEPTH}`,
+        parseDepsDepth,
+        DEFAULT_DEPS_DEPTH,
+      )
+      .option('--json', 'print the dependencies as JSON'),
+  ).action(
+    async (
+      file: string,
+      options: { direction: DependencyDirection; depth: number; json?: boolean; index?: string },
+    ) => {
+      try {
+        const { store, graph } = deps.createRuntime(options.index);
+        const result = await getFileDependencies(store, graph, {
+          path: file,
+          direction: options.direction,
+          depth: options.depth,
+        });
+        io.out(
+          (options.json ? JSON.stringify(result, null, 2) : formatFileDependencies(result)) + '\n',
+        );
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
 
   program
     .command('indexes')

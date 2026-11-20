@@ -99,3 +99,6 @@ Answer:
 - [x] Review fix: a failed fs watcher is restarted with a catch-up pass (at most 3 times); then `watch` and `serve --watch` log the error and exit 1
 - [x] Named indexes: `--index <name>` (or `REPOLENS_INDEX`, default `repolens`) picks a Qdrant collection pair `<name>` and `<name>_graph` for `index`, `search`, `watch`, `serve`, `map` and `bench --qdrant`; `repolens indexes` lists them and `repolens drop <name> --yes` deletes one, so a second repository no longer wipes the first and a provider switch needs no volume wipe
 - [x] Index status: the `index_status` MCP tool and `repolens status [--json]` show the index name, provider and stored vector size, file, chunk and per-language counts, symbol graph size, watcher passes and last pass time (with `serve --watch`), and warnings for an empty index, a vector size mismatch or a failed watcher pass
+
+### M11 Navigation
+- [x] File dependencies: the `file_dependencies` MCP tool and `repolens deps <file> [--direction] [--depth] [--json]` list the indexed files a file imports and the files that import it (breadth first up to 5 levels, with line, module and the file each one was reached via) plus the file's unresolved imports, using the map's path-based resolvers through a shared `loadFileLinks`

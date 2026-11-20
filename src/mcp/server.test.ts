@@ -24,12 +24,13 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the seven tools with schemas', async () => {
+  it('identifies itself and advertises the eight tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'call_graph',
       'file_context',
+      'file_dependencies',
       'find_references',
       'get_symbol',
       'index_status',
@@ -92,6 +93,24 @@ describe('repolens MCP server', () => {
     expect(isError).toBe(false);
     expect(text).toContain('- openDatabase (function)');
     expect((await call('file_context', { path: 'nope.ts' })).isError).toBe(true);
+  });
+
+  it('file_dependencies shows imports and importers and reports unknown files as errors', async () => {
+    const found = await call('file_dependencies', { path: 'src/auth.ts' });
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain("Imports (1):\n  src/db.ts  line 1  './db.js'");
+    const importers = await call('file_dependencies', {
+      path: 'src/db.ts',
+      direction: 'importers',
+      depth: 2,
+    });
+    expect(importers.isError).toBe(false);
+    expect(importers.text).toContain("  src/auth.ts  line 1  './db.js'");
+    const missing = await call('file_dependencies', { path: 'db.ts' });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain('Did you mean src/db.ts?');
+    const tooDeep = await call('file_dependencies', { path: 'src/db.ts', depth: 9 });
+    expect(tooDeep.isError).toBe(true);
   });
 
   it('find_references lists calls and imports, and answers normally when there are none', async () => {
