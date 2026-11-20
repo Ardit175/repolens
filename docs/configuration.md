@@ -16,19 +16,20 @@ Each index name maps to two Qdrant collections: `<name>` holds the chunks and `<
 
 ## Commands
 
-| Command                                  | What it does                                                                                       |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `repolens doctor`                        | Checks Node, Qdrant and the embedding configuration. Exits 1 if a check fails                      |
-| `repolens index <path>`                  | Chunks and embeds a directory, re-embedding only changed files and removing deleted ones           |
-| `repolens index <path> --dry-run`        | Only walks the directory and counts files per language (no Qdrant, no embeddings)                  |
-| `repolens watch <path>`                  | Indexes once, then re-indexes changed files as you edit; `--debounce <ms>` (default 300)           |
-| `repolens search "<query>"`              | Hybrid search; `-n` result count, `--path` prefix, `--language`, `--semantic` (no name boost)      |
-| `repolens serve`                         | Serves the index over MCP on stdio; `--watch <path>` indexes and keeps it fresh                    |
-| `repolens map`                           | Writes a self-contained HTML dependency map; `-o` output file, `--path` prefix filter              |
-| `repolens bench <path> --queries <file>` | Index time, search latency and recall; `--mode hybrid\|semantic` (see [benchmarks](benchmarks.md)) |
-| `repolens status`                        | Shows file, chunk and language counts, provider, vector size and warnings for one index; `--json`  |
-| `repolens indexes`                       | Lists the indexes in Qdrant with chunk, file and dimension counts                                  |
-| `repolens drop <name> --yes`             | Deletes an index and its graph; refuses without `--yes`                                            |
+| Command                                  | What it does                                                                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `repolens doctor`                        | Checks Node, Qdrant and the embedding configuration. Exits 1 if a check fails                                                 |
+| `repolens index <path>`                  | Chunks and embeds a directory, re-embedding only changed files and removing deleted ones                                      |
+| `repolens index <path> --dry-run`        | Only walks the directory and counts files per language (no Qdrant, no embeddings)                                             |
+| `repolens watch <path>`                  | Indexes once, then re-indexes changed files as you edit; `--debounce <ms>` (default 300)                                      |
+| `repolens search "<query>"`              | Hybrid search; `-n` result count, `--path` prefix, `--language`, `--semantic` (no name boost)                                 |
+| `repolens serve`                         | Serves the index over MCP on stdio; `--watch <path>` indexes and keeps it fresh                                               |
+| `repolens map`                           | Writes a self-contained HTML dependency map; `-o` output file, `--path` prefix filter                                         |
+| `repolens deps <file>`                   | Files a file imports and files that import it; `--direction imports\|importers\|both`, `--depth` 1 to 5 (default 1), `--json` |
+| `repolens bench <path> --queries <file>` | Index time, search latency and recall; `--mode hybrid\|semantic` (see [benchmarks](benchmarks.md))                            |
+| `repolens status`                        | Shows file, chunk and language counts, provider, vector size and warnings for one index; `--json`                             |
+| `repolens indexes`                       | Lists the indexes in Qdrant with chunk, file and dimension counts                                                             |
+| `repolens drop <name> --yes`             | Deletes an index and its graph; refuses without `--yes`                                                                       |
 
 Every command that reads or writes the index takes `--index <name>` (see above). `index --max-file-size <bytes>` (also accepted by `watch`) skips larger files (default 1 MiB). The walker respects nested `.gitignore` files and skips binary files.
 
