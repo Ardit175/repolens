@@ -3,9 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { MAX_DEPS_DEPTH } from '../deps.js';
+import { MAX_IMPACT_DEPTH } from '../impact.js';
 import type { Runtime } from '../runtime.js';
 import {
   callGraph,
+  changeImpact,
   fileContext,
   fileDependencies,
   findReferences,
@@ -156,6 +158,30 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => fileDependencies(runtime, input)),
+  );
+
+  server.registerTool(
+    'change_impact',
+    {
+      description:
+        'Shows what a change to a file or one of its symbols can reach: the files that import it (up to depth levels) and the files that call its symbols, grouped as direct, transitive and name-only callers. Name-only callers match by symbol name and may be unrelated.',
+      inputSchema: {
+        path: z.string().min(1).describe('Path relative to the indexed root, e.g. "src/auth.ts"'),
+        symbol: z
+          .string()
+          .optional()
+          .describe('Limit the call sites to one symbol of the file, e.g. "AuthService.login"'),
+        depth: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_IMPACT_DEPTH)
+          .optional()
+          .describe('Import levels to follow, default 1'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => changeImpact(runtime, input)),
   );
 
   server.registerTool(
