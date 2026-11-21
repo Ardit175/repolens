@@ -6,6 +6,7 @@ import {
   type DependencyDirection,
 } from '../deps.js';
 import type { GraphEdge } from '../graph/types.js';
+import { formatChangeImpact, getChangeImpact, UnknownSymbolError } from '../impact.js';
 import type { Runtime } from '../runtime.js';
 import { describeMatch, searchIndex, type SearchMode } from '../search.js';
 import { formatIndexStatus, getIndexStatus } from '../status.js';
@@ -316,6 +317,29 @@ export async function fileDependencies(
     return formatFileDependencies(deps);
   } catch (error) {
     if (error instanceof UnknownFileError) throw new ToolError(error.message);
+    throw error;
+  }
+}
+
+export interface ChangeImpactInput {
+  path: string;
+  symbol?: string | undefined;
+  depth?: number | undefined;
+}
+
+/** What a change to a file, or to one of its symbols, can reach through imports and calls. */
+export async function changeImpact(runtime: Runtime, input: ChangeImpactInput): Promise<string> {
+  try {
+    const impact = await getChangeImpact(runtime.store, runtime.graph, {
+      path: input.path,
+      ...(input.symbol === undefined ? {} : { symbol: input.symbol }),
+      ...(input.depth === undefined ? {} : { depth: input.depth }),
+    });
+    return formatChangeImpact(impact);
+  } catch (error) {
+    if (error instanceof UnknownFileError || error instanceof UnknownSymbolError) {
+      throw new ToolError(error.message);
+    }
     throw error;
   }
 }

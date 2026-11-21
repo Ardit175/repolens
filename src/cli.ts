@@ -22,6 +22,12 @@ import {
 } from './deps.js';
 import { createEmbeddingProvider, type EmbeddingProvider } from './embeddings/index.js';
 import { formatDoctor, runDoctor } from './doctor.js';
+import {
+  DEFAULT_IMPACT_DEPTH,
+  formatChangeImpact,
+  getChangeImpact,
+  MAX_IMPACT_DEPTH,
+} from './impact.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
 import { buildMapData } from './map/build.js';
@@ -112,6 +118,14 @@ function parseDepsDepth(value: string): number {
   const depth = parsePositiveInt(value);
   if (depth > MAX_DEPS_DEPTH) {
     throw new InvalidArgumentError(`must be at most ${MAX_DEPS_DEPTH}.`);
+  }
+  return depth;
+}
+
+function parseImpactDepth(value: string): number {
+  const depth = parsePositiveInt(value);
+  if (depth > MAX_IMPACT_DEPTH) {
+    throw new InvalidArgumentError(`must be at most ${MAX_IMPACT_DEPTH}.`);
   }
   return depth;
 }
@@ -560,6 +574,40 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
         });
         io.out(
           (options.json ? JSON.stringify(result, null, 2) : formatFileDependencies(result)) + '\n',
+        );
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
+
+  withIndexOption(
+    program
+      .command('impact')
+      .description('Show what a change to a file or one of its symbols can reach')
+      .argument('<file>', 'indexed path relative to the indexed root, e.g. src/auth.ts')
+      .option('--symbol <name>', 'limit the call sites to one symbol of the file')
+      .option(
+        '--depth <n>',
+        `import levels to follow, 1 to ${MAX_IMPACT_DEPTH}`,
+        parseImpactDepth,
+        DEFAULT_IMPACT_DEPTH,
+      )
+      .option('--json', 'print the impact as JSON'),
+  ).action(
+    async (
+      file: string,
+      options: { symbol?: string; depth: number; json?: boolean; index?: string },
+    ) => {
+      try {
+        const { store, graph } = deps.createRuntime(options.index);
+        const result = await getChangeImpact(store, graph, {
+          path: file,
+          ...(options.symbol === undefined ? {} : { symbol: options.symbol }),
+          depth: options.depth,
+        });
+        io.out(
+          (options.json ? JSON.stringify(result, null, 2) : formatChangeImpact(result)) + '\n',
         );
       } catch (error) {
         fail(io, error);

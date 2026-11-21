@@ -609,6 +609,64 @@ describe('repolens index, search and doctor with a store', () => {
     expect(err).toContain('must be at most 5');
   });
 
+  it('impact prints importers and call sites', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'impact', 'src/b.ts');
+    expect(out).toContain(
+      'Affected files (1): 1 direct importer, 0 transitive, 0 name-only callers',
+    );
+    expect(out).toContain('src/a.ts  direct import\n    line 2  b  in a');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('impact --json and --symbol print the result as JSON', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\nexport function c() { return 2; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'impact', 'src/b.ts', '--json', '--symbol', 'b', '--depth', '2');
+    const result = JSON.parse(out) as {
+      path: string;
+      symbol: string;
+      symbols: { name: string }[];
+      files: { path: string; link: string }[];
+    };
+    expect(result.path).toBe('src/b.ts');
+    expect(result.symbol).toBe('b');
+    expect(result.symbols.map((s) => s.name)).toEqual(['b']);
+    expect(result.files).toMatchObject([{ path: 'src/a.ts', link: 'direct' }]);
+  });
+
+  it('impact reports an unknown file and an unknown symbol with exit code 1', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'impact', 'a.ts');
+    expect(err).toBe('error: a.ts is not indexed. Did you mean src/a.ts?\n');
+    expect(out).toBe('');
+    expect(process.exitCode).toBe(1);
+    err = '';
+    await runWith(deps, 'impact', 'src/a.ts', '--symbol', 'nothing');
+    expect(err).toContain('Symbol "nothing" is not defined in src/a.ts');
+    expect(out).toBe('');
+  });
+
+  it('impact rejects a bad --depth', async () => {
+    await run('impact', 'a.ts', '--depth', '0');
+    expect(err).toContain('must be a positive integer');
+    expect(process.exitCode).toBe(1);
+    err = '';
+    await run('impact', 'a.ts', '--depth', '6');
+    expect(err).toContain('must be at most 5');
+  });
+
   it('serve without --watch does not start a watcher', async () => {
     const { deps } = memory();
     await runWith(deps, 'serve');
@@ -672,6 +730,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['serve', () => ['serve']],
       ['status', () => ['status']],
       ['deps', () => ['deps', 'a.ts']],
+      ['impact', () => ['impact', 'a.ts']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {

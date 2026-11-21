@@ -5,6 +5,7 @@ import { InMemoryGraphStore } from '../graph/store.js';
 import type { GraphEdge } from '../graph/types.js';
 import {
   callGraph,
+  changeImpact,
   fileContext,
   fileDependencies,
   findReferences,
@@ -249,5 +250,43 @@ describe('fileDependencies', () => {
     const failure = fileDependencies(runtime, { path: 'auth.ts' });
     await expect(failure).rejects.toBeInstanceOf(ToolError);
     await expect(failure).rejects.toThrow('Did you mean src/auth.ts?');
+  });
+});
+
+describe('changeImpact', () => {
+  it('lists the direct importer and the call sites of a file', async () => {
+    const text = await changeImpact(runtime, { path: 'src/db.ts' });
+    expect(text.split('\n')[0]).toBe('src/db.ts');
+    expect(text).toContain(
+      'Affected files (2): 1 direct importer, 0 transitive, 1 name-only caller',
+    );
+    expect(text).toContain(
+      'src/auth.ts  direct import\n    line 3  openDatabase  in AuthService.login',
+    );
+    expect(text).toContain('scripts/seed.py  name-only caller');
+  });
+
+  it('narrows the impact to one symbol', async () => {
+    const text = await changeImpact(runtime, { path: 'src/auth.ts', symbol: 'AuthService.login' });
+    expect(text).toContain('src/auth.ts  (symbol: AuthService.login)');
+    expect(text).toContain('Affected files (0):');
+  });
+
+  it('turns an unknown file into a ToolError with suggestions', async () => {
+    const failure = changeImpact(runtime, { path: 'db.ts' });
+    await expect(failure).rejects.toBeInstanceOf(ToolError);
+    await expect(failure).rejects.toThrow('Did you mean src/db.ts?');
+  });
+
+  it('turns an unknown symbol into a ToolError that lists the symbols', async () => {
+    const failure = changeImpact(runtime, { path: 'src/db.ts', symbol: 'nothing' });
+    await expect(failure).rejects.toBeInstanceOf(ToolError);
+    await expect(failure).rejects.toThrow('Symbols in this file: openDatabase');
+  });
+
+  it('lets an invalid depth through as a RangeError', async () => {
+    await expect(changeImpact(runtime, { path: 'src/db.ts', depth: 9 })).rejects.toBeInstanceOf(
+      RangeError,
+    );
   });
 });

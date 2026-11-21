@@ -24,11 +24,12 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the eight tools with schemas', async () => {
+  it('identifies itself and advertises the nine tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'call_graph',
+      'change_impact',
       'file_context',
       'file_dependencies',
       'find_references',
@@ -110,6 +111,29 @@ describe('repolens MCP server', () => {
     expect(missing.isError).toBe(true);
     expect(missing.text).toContain('Did you mean src/db.ts?');
     const tooDeep = await call('file_dependencies', { path: 'src/db.ts', depth: 9 });
+    expect(tooDeep.isError).toBe(true);
+  });
+
+  it('change_impact lists importers and callers and reports bad input as errors', async () => {
+    const found = await call('change_impact', { path: 'src/db.ts' });
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('src/auth.ts  direct import');
+    expect(found.text).toContain('line 3  openDatabase  in AuthService.login');
+    expect(found.text).toContain('scripts/seed.py  name-only caller');
+    const one = await call('change_impact', {
+      path: 'src/db.ts',
+      symbol: 'openDatabase',
+      depth: 2,
+    });
+    expect(one.isError).toBe(false);
+    expect(one.text).toContain('(symbol: openDatabase)');
+    const missing = await call('change_impact', { path: 'db.ts' });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain('Did you mean src/db.ts?');
+    const unknown = await call('change_impact', { path: 'src/db.ts', symbol: 'nothing' });
+    expect(unknown.isError).toBe(true);
+    expect(unknown.text).toContain('Symbol "nothing" is not defined in src/db.ts');
+    const tooDeep = await call('change_impact', { path: 'src/db.ts', depth: 9 });
     expect(tooDeep.isError).toBe(true);
   });
 
