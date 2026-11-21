@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.0](https://github.com/Ardit175/repolens/compare/repolens-v0.12.0...repolens-v0.13.0) (2026-11-21)
+
+
+### Features
+
+* add the change_impact MCP tool and the repolens impact command ([d417e82](https://github.com/Ardit175/repolens/commit/d417e822fc6a5c836eefc8b366df34ae5529028e))
+* change impact tool and command ([3457d8f](https://github.com/Ardit175/repolens/commit/3457d8fd660a2afe3503a829f34004c63d1b448b))
+* summarise the change impact of a file from importers and callers ([6199829](https://github.com/Ardit175/repolens/commit/6199829aa3e30a4a6a72414c090fc85e636df834))
+
 ## [0.12.0](https://github.com/Ardit175/repolens/compare/repolens-v0.11.0...repolens-v0.12.0) (2026-11-20)
 
 
