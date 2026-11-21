@@ -102,3 +102,4 @@ Answer:
 
 ### M11 Navigation
 - [x] File dependencies: the `file_dependencies` MCP tool and `repolens deps <file> [--direction] [--depth] [--json]` list the indexed files a file imports and the files that import it (breadth first up to 5 levels, with line, module and the file each one was reached via) plus the file's unresolved imports, using the map's path-based resolvers through a shared `loadFileLinks`
+- [x] Change impact: the `change_impact` MCP tool and `repolens impact <file> [--symbol] [--depth] [--json]` list what a change to a file or one of its symbols can reach: files that import it (direct, or transitive up to 5 levels with the file it was reached via) and files that call its symbols, each call site with line and enclosing symbol. Callers that do not import the file are labelled name-only, because call targets are matched by name
