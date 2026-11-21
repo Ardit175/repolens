@@ -1,17 +1,18 @@
 # MCP tools
 
-`repolens serve` registers eight read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
+`repolens serve` registers nine read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
 
-| Tool                | Arguments                                                                                                 | Returns                                                                                              |
-| ------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `search_code`       | `query`; optional `limit` (1-20, default 5), `path`, `language`, `mode`                                   | Closest chunks with location, symbol, score and a code preview                                       |
-| `get_symbol`        | `name` (`Class.method` works); optional `path`                                                            | Full code of each matching function, method, class or type                                           |
-| `list_files`        | optional `path` prefix, `limit` (default 200, max 1000)                                                   | Indexed files                                                                                        |
-| `file_context`      | `path`                                                                                                    | An outline of the file's symbols, then their code                                                    |
-| `find_references`   | `name`; optional `limit` (1-200, default 50)                                                              | Every import of and call to the name, with file, line and calling symbol                             |
-| `call_graph`        | `name`; optional `direction` (`callers` or `callees`), `depth` (1-5, default 2)                           | An indented tree of callers or callees, with a cycle guard                                           |
-| `file_dependencies` | `path`; optional `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1) | The files it imports and the files that import it, each with line and module; its unresolved imports |
-| `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                   |
+| Tool                | Arguments                                                                                                 | Returns                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `search_code`       | `query`; optional `limit` (1-20, default 5), `path`, `language`, `mode`                                   | Closest chunks with location, symbol, score and a code preview                                           |
+| `get_symbol`        | `name` (`Class.method` works); optional `path`                                                            | Full code of each matching function, method, class or type                                               |
+| `list_files`        | optional `path` prefix, `limit` (default 200, max 1000)                                                   | Indexed files                                                                                            |
+| `file_context`      | `path`                                                                                                    | An outline of the file's symbols, then their code                                                        |
+| `find_references`   | `name`; optional `limit` (1-200, default 50)                                                              | Every import of and call to the name, with file, line and calling symbol                                 |
+| `call_graph`        | `name`; optional `direction` (`callers` or `callees`), `depth` (1-5, default 2)                           | An indented tree of callers or callees, with a cycle guard                                               |
+| `file_dependencies` | `path`; optional `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1) | The files it imports and the files that import it, each with line and module; its unresolved imports     |
+| `change_impact`     | `path`; optional `symbol`, `depth` (1-5, default 1)                                                       | The files that import it and the files that call its symbols, grouped as direct, transitive or name-only |
+| `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                       |
 
 ## file_dependencies
 
@@ -35,6 +36,28 @@ Imports resolve by path only; packages, C# namespaces and Swift modules are not 
 An unknown path is an error result. The message suggests indexed paths with the same file name, so the model can retry with the right one.
 
 The same output is available from the terminal with `repolens deps <file> [--direction imports|importers|both] [--depth 1..5] [--json] [--index <name>]`.
+
+## change_impact
+
+Takes a `path` relative to the indexed root, for example `src/db.ts`, and answers what a change to that file can reach. Importers come from the same links as `file_dependencies`, followed up to `depth` levels (1 to 5, default 1). Call sites come from the symbol graph: for each symbol defined in the file, every call to that name in another file. Pass `symbol` (`name` or `Class.method`) to look at one symbol only.
+
+Each affected file is listed once, with its link: `direct import`, `transitive` (with its depth and the file it was reached via) or `name-only caller`. Name-only callers call a symbol of the file by name without importing it. Call targets are stored as names only, so these may be unrelated functions that share a name. Files are ordered direct, transitive, then name-only, then by number of call sites, then by path. At most 100 files are listed and at most 1000 calls are read per symbol; when either limit is hit the output is marked truncated.
+
+```text
+src/db.ts
+Symbols (1):
+  openDatabase (function) lines 1-3  2 call sites
+Affected files (2): 1 direct importer, 0 transitive, 1 name-only caller; 2 call sites
+  src/auth.ts  direct import
+    line 3  openDatabase  in AuthService.login
+  scripts/seed.py  name-only caller
+    line 2  openDatabase  in seed_database
+Links resolve by import path; name-only callers match by symbol name and may be unrelated.
+```
+
+An unknown path or a symbol that the file does not define is an error result. The message suggests similar paths, or lists the symbols of the file.
+
+The same output is available from the terminal with `repolens impact <file> [--symbol <name>] [--depth 1..5] [--json] [--index <name>]`.
 
 ## index_status
 
