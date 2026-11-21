@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.0](https://github.com/Ardit175/repolens/compare/repolens-v0.11.0...repolens-v0.12.0) (2026-11-20)
+
+
+### Features
+
+* add the file_dependencies MCP tool and the repolens deps command ([09d2902](https://github.com/Ardit175/repolens/commit/09d2902bdb39049d9b5dd1e696154d628a2dd7dd))
+* compute a file's imports and importers from resolved import links ([bb965ad](https://github.com/Ardit175/repolens/commit/bb965adc510eb6aae07c7a67761af19a31b8ab62))
+* file dependencies tool and command ([bde34f6](https://github.com/Ardit175/repolens/commit/bde34f6458c4b9a260be99fe5a72516b030930bd))
+
 ## [0.11.0](https://github.com/Ardit175/repolens/compare/repolens-v0.10.0...repolens-v0.11.0) (2026-11-18)
 
 
