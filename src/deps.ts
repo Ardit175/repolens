@@ -127,12 +127,14 @@ function walk(
 
 /**
  * The files `path` imports and the files that import it, up to `depth` levels in each direction.
- * Links come from the same path-based import resolution as the map.
+ * Links come from the same path-based import resolution as the map. Pass `links` to reuse links
+ * that were already loaded.
  */
 export async function getFileDependencies(
   store: VectorStore,
   graph: GraphStore,
   input: FileDependenciesInput,
+  links?: FileLinks,
 ): Promise<FileDependencies> {
   const direction = input.direction ?? 'both';
   const depth = input.depth ?? DEFAULT_DEPS_DEPTH;
@@ -140,10 +142,10 @@ export async function getFileDependencies(
     throw new RangeError(`depth must be an integer from 1 to ${MAX_DEPS_DEPTH}`);
   }
   const start = normalisePath(input.path);
-  const links = await loadFileLinks(store, graph);
-  if (!links.indexed.has(start)) throw unknownFile(start, links.indexed);
+  const fileLinks = links ?? (await loadFileLinks(store, graph));
+  if (!fileLinks.indexed.has(start)) throw unknownFile(start, fileLinks.indexed);
 
-  const forward = firstEdges(links);
+  const forward = firstEdges(fileLinks);
   const backward = new Map<string, Map<string, GraphEdge>>();
   for (const [from, targets] of forward) {
     for (const [to, edge] of targets) {
@@ -175,7 +177,7 @@ export async function getFileDependencies(
   const unresolved =
     direction === 'importers'
       ? []
-      : links.unresolved
+      : fileLinks.unresolved
           .filter((edge) => edge.path === start)
           .sort((a, b) => a.line - b.line)
           .map((edge) => ({ module: edge.module ?? edge.target, line: edge.line }));
