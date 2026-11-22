@@ -65,12 +65,44 @@ const EDGES: Record<string, GraphEdge[]> = {
   ],
 };
 
-/** A runtime over in-memory stores holding a few real chunks and hand-written graph edges, for tool and MCP tests. */
-export async function seededRuntime(): Promise<Runtime> {
+const TEST_SOURCES: Record<string, string> = {
+  'src/auth.test.ts': `import { AuthService } from './auth.js';
+
+export function checksLogin(): boolean {
+  return new AuthService().login('ada', 'secret');
+}
+`,
+};
+
+const TEST_EDGES: Record<string, GraphEdge[]> = {
+  'src/auth.test.ts': [
+    {
+      path: 'src/auth.test.ts',
+      language: 'typescript',
+      kind: 'import',
+      target: 'AuthService',
+      module: './auth.js',
+      line: 1,
+    },
+    {
+      path: 'src/auth.test.ts',
+      language: 'typescript',
+      kind: 'call',
+      target: 'login',
+      from: 'checksLogin',
+      line: 4,
+    },
+  ],
+};
+
+/** A runtime over in-memory stores holding a few real chunks and hand-written graph edges, for tool and MCP tests. `withTests` adds a test file for src/auth.ts. */
+export async function seededRuntime(options: { withTests?: boolean } = {}): Promise<Runtime> {
+  const sources = options.withTests === true ? { ...SOURCES, ...TEST_SOURCES } : SOURCES;
+  const allEdges = options.withTests === true ? { ...EDGES, ...TEST_EDGES } : EDGES;
   const store = new InMemoryVectorStore();
   const embeddings = new FakeEmbeddingProvider();
   await store.ensureCollection(embeddings.dimensions);
-  for (const [path, source] of Object.entries(SOURCES)) {
+  for (const [path, source] of Object.entries(sources)) {
     const language = path.endsWith('.py') ? 'python' : 'typescript';
     const chunks = await chunkFile(path, language, source);
     const vectors = await embeddings.embed(chunks.map((c) => c.content));
@@ -79,7 +111,7 @@ export async function seededRuntime(): Promise<Runtime> {
     );
   }
   const graph = new InMemoryGraphStore();
-  for (const [path, edges] of Object.entries(EDGES))
+  for (const [path, edges] of Object.entries(allEdges))
     await graph.replaceFile(path, 'fixture', edges);
   return { index: 'test', store, graph, embeddings };
 }

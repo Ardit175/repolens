@@ -2,10 +2,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { MAX_CHANGED_FILES, MAX_TESTS_DEPTH } from '../affected-tests.js';
 import { MAX_DEPS_DEPTH } from '../deps.js';
 import { MAX_IMPACT_DEPTH } from '../impact.js';
 import type { Runtime } from '../runtime.js';
 import {
+  affectedTests,
   callGraph,
   changeImpact,
   fileContext,
@@ -182,6 +184,30 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => changeImpact(runtime, input)),
+  );
+
+  server.registerTool(
+    'affected_tests',
+    {
+      description:
+        'Lists the test files to run after changing one or more files: tests that import a changed file (directly or through other files), call its symbols, are named after it (foo.test.ts, test_foo.py, FooTest.java, foo_test.go, ...), or are changed themselves, each with the reasons it was picked. Name-only callers may be unrelated.',
+      inputSchema: {
+        paths: z
+          .array(z.string().min(1))
+          .min(1)
+          .max(MAX_CHANGED_FILES)
+          .describe('Changed paths relative to the indexed root, e.g. ["src/auth.ts"]'),
+        depth: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_TESTS_DEPTH)
+          .optional()
+          .describe('Import levels to follow, default 3'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => affectedTests(runtime, input)),
   );
 
   server.registerTool(

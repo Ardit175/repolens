@@ -4,6 +4,7 @@ import { seededRuntime } from './fixtures.js';
 import { InMemoryGraphStore } from '../graph/store.js';
 import type { GraphEdge } from '../graph/types.js';
 import {
+  affectedTests,
   callGraph,
   changeImpact,
   fileContext,
@@ -287,6 +288,43 @@ describe('changeImpact', () => {
   it('lets an invalid depth through as a RangeError', async () => {
     await expect(changeImpact(runtime, { path: 'src/db.ts', depth: 9 })).rejects.toBeInstanceOf(
       RangeError,
+    );
+  });
+});
+
+describe('affectedTests', () => {
+  let withTests: Runtime;
+  beforeAll(async () => {
+    withTests = await seededRuntime({ withTests: true });
+  });
+
+  it('lists the tests that import or call the changed file, with reasons', async () => {
+    const text = await affectedTests(withTests, { paths: ['src/auth.ts'] });
+    expect(text).toContain('Changed (1): src/auth.ts');
+    expect(text).toContain('Tests to run (1):');
+    expect(text).toContain(
+      'src/auth.test.ts\n    imports src/auth.ts directly\n    makes 1 call into src/auth.ts',
+    );
+  });
+
+  it('answers normally when no test is affected', async () => {
+    const text = await affectedTests(withTests, { paths: ['scripts/seed.py'], depth: 1 });
+    expect(text).toContain('Tests to run (0):');
+    expect(text).toContain('(none)');
+  });
+
+  it('turns an unknown file into a ToolError with suggestions', async () => {
+    const failure = affectedTests(withTests, { paths: ['db.ts'] });
+    await expect(failure).rejects.toBeInstanceOf(ToolError);
+    await expect(failure).rejects.toThrow('Did you mean src/db.ts?');
+  });
+
+  it('turns too many paths and a bad depth into ToolErrors', async () => {
+    const many = Array.from({ length: 51 }, (_, i) => `src/f${i}.ts`);
+    await expect(affectedTests(withTests, { paths: many })).rejects.toBeInstanceOf(ToolError);
+    await expect(affectedTests(withTests, { paths: [] })).rejects.toBeInstanceOf(ToolError);
+    await expect(affectedTests(withTests, { paths: ['src/db.ts'], depth: 9 })).rejects.toThrow(
+      'depth must be an integer from 1 to 5',
     );
   });
 });

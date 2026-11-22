@@ -1,3 +1,4 @@
+import { formatAffectedTests, getAffectedTests } from '../affected-tests.js';
 import type { Chunk } from '../chunker/types.js';
 import {
   formatFileDependencies,
@@ -338,6 +339,30 @@ export async function changeImpact(runtime: Runtime, input: ChangeImpactInput): 
     return formatChangeImpact(impact);
   } catch (error) {
     if (error instanceof UnknownFileError || error instanceof UnknownSymbolError) {
+      throw new ToolError(error.message);
+    }
+    throw error;
+  }
+}
+
+export interface AffectedTestsToolInput {
+  paths: string[];
+  depth?: number | undefined;
+}
+
+/** The test files to run after changing files, each with the reasons it was picked. */
+export async function affectedTests(
+  runtime: Runtime,
+  input: AffectedTestsToolInput,
+): Promise<string> {
+  try {
+    const result = await getAffectedTests(runtime.store, runtime.graph, {
+      paths: input.paths,
+      ...(input.depth === undefined ? {} : { depth: input.depth }),
+    });
+    return formatAffectedTests(result);
+  } catch (error) {
+    if (error instanceof UnknownFileError || error instanceof RangeError) {
       throw new ToolError(error.message);
     }
     throw error;
