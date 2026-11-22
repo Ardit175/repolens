@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.0](https://github.com/Ardit175/repolens/compare/repolens-v0.13.0...repolens-v0.14.0) (2026-11-22)
+
+
+### Features
+
+* add the affected_tests MCP tool and the repolens tests command ([79240db](https://github.com/Ardit175/repolens/commit/79240dbc8992651d690a3d4295506f71c1b61664))
+* affected tests tool and command ([878d306](https://github.com/Ardit175/repolens/commit/878d3060fa8cba7d8a04e19b93913774204d26f0))
+* pick the test files affected by a change from imports, calls and names ([9f18679](https://github.com/Ardit175/repolens/commit/9f186791fe1cd8dfe2714661d9994815d5fdc197))
+
 ## [0.13.0](https://github.com/Ardit175/repolens/compare/repolens-v0.12.0...repolens-v0.13.0) (2026-11-21)
 
 
