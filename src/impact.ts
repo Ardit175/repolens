@@ -1,7 +1,7 @@
 import type { SymbolKind } from './chunker/types.js';
 import { getFileDependencies } from './deps.js';
 import type { GraphStore } from './graph/types.js';
-import { compare } from './map/links.js';
+import { compare, type FileLinks } from './map/links.js';
 import type { VectorStore } from './store/types.js';
 
 export type ImpactLink = 'direct' | 'transitive' | 'name-only';
@@ -122,16 +122,22 @@ export async function getChangeImpact(
   store: VectorStore,
   graph: GraphStore,
   input: ChangeImpactInput,
+  links?: FileLinks,
 ): Promise<ChangeImpact> {
   const depth = input.depth ?? DEFAULT_IMPACT_DEPTH;
   if (!Number.isInteger(depth) || depth < 1 || depth > MAX_IMPACT_DEPTH) {
     throw new RangeError(`depth must be an integer from 1 to ${MAX_IMPACT_DEPTH}`);
   }
-  const deps = await getFileDependencies(store, graph, {
-    path: input.path,
-    direction: 'importers',
-    depth,
-  });
+  const deps = await getFileDependencies(
+    store,
+    graph,
+    {
+      path: input.path,
+      direction: 'importers',
+      depth,
+    },
+    links,
+  );
   const start = deps.path;
 
   const requested = input.symbol?.trim();

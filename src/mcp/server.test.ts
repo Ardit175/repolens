@@ -6,11 +6,15 @@ import { createServer } from './server.js';
 
 let client: Client;
 
-beforeEach(async () => {
-  const server = createServer(await seededRuntime(), '1.2.3');
+async function connect(withTests = false): Promise<void> {
+  const server = createServer(await seededRuntime({ withTests }), '1.2.3');
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   client = new Client({ name: 'test', version: '0' });
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
+}
+
+beforeEach(async () => {
+  await connect();
 });
 
 afterEach(async () => {
@@ -24,10 +28,11 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the nine tools with schemas', async () => {
+  it('identifies itself and advertises the ten tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'affected_tests',
       'call_graph',
       'change_impact',
       'file_context',
@@ -135,6 +140,24 @@ describe('repolens MCP server', () => {
     expect(unknown.text).toContain('Symbol "nothing" is not defined in src/db.ts');
     const tooDeep = await call('change_impact', { path: 'src/db.ts', depth: 9 });
     expect(tooDeep.isError).toBe(true);
+  });
+
+  it('affected_tests lists tests with reasons and reports bad input as errors', async () => {
+    await client.close();
+    await connect(true);
+    const found = await call('affected_tests', { paths: ['src/auth.ts'] });
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('Tests to run (1):');
+    expect(found.text).toContain('src/auth.test.ts\n    imports src/auth.ts directly');
+    const missing = await call('affected_tests', { paths: ['db.ts'] });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain('Did you mean src/db.ts?');
+    expect((await call('affected_tests', { paths: [] })).isError).toBe(true);
+    expect((await call('affected_tests', { paths: ['src/db.ts'], depth: 9 })).isError).toBe(true);
+    const tooMany = await call('affected_tests', {
+      paths: Array.from({ length: 51 }, (_, i) => `src/f${i}.ts`),
+    });
+    expect(tooMany.isError).toBe(true);
   });
 
   it('find_references lists calls and imports, and answers normally when there are none', async () => {

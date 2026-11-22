@@ -667,6 +667,58 @@ describe('repolens index, search and doctor with a store', () => {
     expect(err).toContain('must be at most 5');
   });
 
+  it('tests prints the tests to run with their reasons', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    write('src/a.test.ts', "import { a } from './a.js';\nexport const t = a();\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'tests', 'src/a.ts');
+    expect(out).toContain('Changed (1): src/a.ts');
+    expect(out).toContain('Tests to run (1):');
+    expect(out).toContain('src/a.test.ts\n    imports src/a.ts directly');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('tests --json prints the result as JSON for several files', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    write('src/a.test.ts', "import { a } from './a.js';\nexport const t = a();\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'tests', 'src/a.ts', 'src/b.ts', '--json', '--depth', '2');
+    const result = JSON.parse(out) as {
+      changed: string[];
+      tests: { path: string; reasons: { kind: string }[] }[];
+      total: number;
+    };
+    expect(result.changed).toEqual(['src/a.ts', 'src/b.ts']);
+    expect(result.total).toBe(1);
+    expect(result.tests[0]?.path).toBe('src/a.test.ts');
+  });
+
+  it('tests reports an unknown file with exit code 1', async () => {
+    const { deps } = memory();
+    write('src/a.ts', 'export function a() { return 1; }\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'tests', 'a.ts');
+    expect(err).toBe('error: a.ts is not indexed. Did you mean src/a.ts?\n');
+    expect(out).toBe('');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('tests rejects a bad --depth', async () => {
+    await run('tests', 'a.ts', '--depth', '0');
+    expect(err).toContain('must be a positive integer');
+    expect(process.exitCode).toBe(1);
+    err = '';
+    await run('tests', 'a.ts', '--depth', '6');
+    expect(err).toContain('must be at most 5');
+  });
+
   it('serve without --watch does not start a watcher', async () => {
     const { deps } = memory();
     await runWith(deps, 'serve');
@@ -731,6 +783,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['status', () => ['status']],
       ['deps', () => ['deps', 'a.ts']],
       ['impact', () => ['impact', 'a.ts']],
+      ['tests', () => ['tests', 'a.ts']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {

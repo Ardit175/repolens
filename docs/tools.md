@@ -1,6 +1,6 @@
 # MCP tools
 
-`repolens serve` registers nine read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
+`repolens serve` registers ten read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
 
 | Tool                | Arguments                                                                                                 | Returns                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -12,6 +12,7 @@
 | `call_graph`        | `name`; optional `direction` (`callers` or `callees`), `depth` (1-5, default 2)                           | An indented tree of callers or callees, with a cycle guard                                               |
 | `file_dependencies` | `path`; optional `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1) | The files it imports and the files that import it, each with line and module; its unresolved imports     |
 | `change_impact`     | `path`; optional `symbol`, `depth` (1-5, default 1)                                                       | The files that import it and the files that call its symbols, grouped as direct, transitive or name-only |
+| `affected_tests`    | `paths` (1-50); optional `depth` (1-5, default 3)                                                         | The test files to run after changing those files, each with the reasons it was picked                    |
 | `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                       |
 
 ## file_dependencies
@@ -58,6 +59,32 @@ Links resolve by import path; name-only callers match by symbol name and may be 
 An unknown path or a symbol that the file does not define is an error result. The message suggests similar paths, or lists the symbols of the file.
 
 The same output is available from the terminal with `repolens impact <file> [--symbol <name>] [--depth 1..5] [--json] [--index <name>]`.
+
+## affected_tests
+
+Takes `paths`, one to 50 changed files relative to the indexed root, for example `["src/auth.ts"]`, and answers which test files to run. `depth` sets how many import levels to follow (1 to 5, default 3). Every test is listed once with the reasons it was picked:
+
+- **changed**: the test file is one of the changed paths.
+- **imports**: the test imports a changed file directly, or through other files up to `depth` levels (the output names the file it was reached via).
+- **calls**: the test calls a symbol defined in a changed file. A test that does not import the file is marked as a name-only caller, because call targets are stored as names only and it may be unrelated.
+- **name**: the test is named after a changed file. Among tests with the same name and language, only those sharing the most leading directories with the changed file are kept, so a common name such as `index` does not match tests all over the repository.
+
+A path is a test when its file name follows a convention (`foo.test.ts`, `foo.spec.js`, `test_foo.py`, `foo_test.py`, `foo_test.go`, `foo_spec.rb`, `foo_test.rb`, `test_foo.rb`, `foo_test.rs`, `foo_test.c`, `foo_test.cc`, `foo_test.cpp`, `test_foo.c`, `FooTest.java`, `FooTests.cs`, `FooSpec.scala`, and the same for `.kt`, `.swift` and `.php`) or when it sits in a `__tests__`, `tests`, `test` or `spec` directory. Files under `fixtures`, `__fixtures__`, `testdata` and `__snapshots__` are never tests.
+
+Tests are ordered by their strongest reason: changed, then a direct import or a direct (non-name-only) caller, then a name match, then a transitive import, then a name-only caller. Ties go to the test with more reasons, then to the path. At most 200 tests are listed, and the output says when it is cut or when an impact lookup left links out because of a limit.
+
+```text
+Changed (1): src/auth.ts
+Tests to run (1):
+  src/auth.test.ts
+    imports src/auth.ts directly
+    makes 1 call into src/auth.ts
+Picked by import links, call sites (matched by name) and test file naming conventions.
+```
+
+An unknown path, an empty or too long `paths` list and a `depth` outside 1 to 5 are error results. The message for an unknown path suggests indexed paths with the same file name.
+
+The same output is available from the terminal with `repolens tests <files...> [--depth 1..5] [--json] [--index <name>]`.
 
 ## index_status
 

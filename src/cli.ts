@@ -12,6 +12,12 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
+import {
+  DEFAULT_TESTS_DEPTH,
+  formatAffectedTests,
+  getAffectedTests,
+  MAX_TESTS_DEPTH,
+} from './affected-tests.js';
 import { formatBenchmark, parseQueries, runBenchmark } from './bench/bench.js';
 import {
   DEFAULT_DEPS_DEPTH,
@@ -126,6 +132,14 @@ function parseImpactDepth(value: string): number {
   const depth = parsePositiveInt(value);
   if (depth > MAX_IMPACT_DEPTH) {
     throw new InvalidArgumentError(`must be at most ${MAX_IMPACT_DEPTH}.`);
+  }
+  return depth;
+}
+
+function parseTestsDepth(value: string): number {
+  const depth = parsePositiveInt(value);
+  if (depth > MAX_TESTS_DEPTH) {
+    throw new InvalidArgumentError(`must be at most ${MAX_TESTS_DEPTH}.`);
   }
   return depth;
 }
@@ -614,6 +628,28 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       }
     },
   );
+
+  withIndexOption(
+    program
+      .command('tests')
+      .description('List the test files to run after changing files')
+      .argument('<files...>', 'changed paths relative to the indexed root, e.g. src/auth.ts')
+      .option(
+        '--depth <n>',
+        `import levels to follow, 1 to ${MAX_TESTS_DEPTH}`,
+        parseTestsDepth,
+        DEFAULT_TESTS_DEPTH,
+      )
+      .option('--json', 'print the affected tests as JSON'),
+  ).action(async (files: string[], options: { depth: number; json?: boolean; index?: string }) => {
+    try {
+      const { store, graph } = deps.createRuntime(options.index);
+      const result = await getAffectedTests(store, graph, { paths: files, depth: options.depth });
+      io.out((options.json ? JSON.stringify(result, null, 2) : formatAffectedTests(result)) + '\n');
+    } catch (error) {
+      fail(io, error);
+    }
+  });
 
   program
     .command('indexes')
