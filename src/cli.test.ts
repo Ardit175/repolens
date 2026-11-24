@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProgram, main, type Deps } from './cli.js';
 import { InMemoryGraphStore } from './graph/store.js';
+import { GitError } from './git.js';
 import { resolveIndexName, type IndexInfo } from './indexes.js';
 import type { Runtime } from './runtime.js';
 import { InMemoryVectorStore } from './store/index.js';
@@ -156,6 +157,9 @@ describe('repolens index, search and doctor with a store', () => {
   afterEach(() => {
     watchCalls.length = 0;
     requestedIndexes.length = 0;
+    changedCalls.length = 0;
+    changedResult = [];
+    changedError = undefined;
     dropCalls.length = 0;
     indexInfos = [];
     dropResult = { chunks: true, graph: true };
@@ -168,6 +172,14 @@ describe('repolens index, search and doctor with a store', () => {
   });
   const requestedIndexes: (string | undefined)[] = [];
   const dropCalls: string[] = [];
+  const changedCalls: { root: string; ref: string | undefined }[] = [];
+  let changedResult: string[] = [];
+  let changedError: Error | undefined;
+  const changedFiles = async (root: string, ref?: string) => {
+    changedCalls.push({ root, ref });
+    if (changedError) throw changedError;
+    return changedResult;
+  };
   let indexInfos: IndexInfo[] = [];
   let dropResult = { chunks: true, graph: true };
   const dropIndex = async (name: string) => {
@@ -189,6 +201,7 @@ describe('repolens index, search and doctor with a store', () => {
         createRuntime,
         createEmbeddings: () => embeddings,
         listIndexes: async () => indexInfos,
+        changedFiles,
         dropIndex,
         serve,
         watch,
@@ -313,6 +326,7 @@ describe('repolens index, search and doctor with a store', () => {
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
       listIndexes: async () => indexInfos,
+      changedFiles,
       dropIndex,
       serve,
       watch,
@@ -336,6 +350,7 @@ describe('repolens index, search and doctor with a store', () => {
       },
       createEmbeddings: () => new FakeEmbeddingProvider(),
       listIndexes: async () => indexInfos,
+      changedFiles,
       dropIndex,
       serve,
       watch,
@@ -708,6 +723,98 @@ describe('repolens index, search and doctor with a store', () => {
     expect(err).toBe('error: a.ts is not indexed. Did you mean src/a.ts?\n');
     expect(out).toBe('');
     expect(process.exitCode).toBe(1);
+  });
+
+  describe('tests --changed', () => {
+    const indexProject = async () => {
+      const { deps } = memory();
+      write('src/a.ts', 'export function a() { return 1; }\n');
+      write('src/a.test.ts', "import { a } from './a.js';\nexport const t = a();\n");
+      await runWith(deps, 'index', dir);
+      out = '';
+      requestedIndexes.length = 0;
+      return deps;
+    };
+
+    it('takes the files from git, skips unindexed ones and prints them', async () => {
+      const deps = await indexProject();
+      changedResult = ['src/a.ts', 'notes.md'];
+      await runWith(deps, 'tests', '--changed');
+      expect(changedCalls).toEqual([{ root: '.', ref: undefined }]);
+      expect(out).toContain('Changed (1): src/a.ts');
+      expect(out).toContain('src/a.test.ts');
+      expect(out).toContain('notes.md');
+      expect(err).toBe('');
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('passes the ref and root to changedFiles', async () => {
+      const deps = await indexProject();
+      changedResult = ['src/a.ts'];
+      await runWith(deps, 'tests', '--changed', 'main', '--root', 'x', '--json');
+      expect(changedCalls).toEqual([{ root: 'x', ref: 'main' }]);
+      const result = JSON.parse(out) as { changed: string[]; skipped: string[] };
+      expect(result.changed).toEqual(['src/a.ts']);
+      expect(result.skipped).toEqual([]);
+    });
+
+    it('says so and skips the runtime when nothing changed', async () => {
+      const deps = await indexProject();
+      await runWith(deps, 'tests', '--changed');
+      expect(out).toBe('No changed files compared to HEAD.\n');
+      await runWith(deps, 'tests', '--changed', 'main');
+      expect(out).toContain('No changed files compared to main.\n');
+      expect(requestedIndexes).toEqual([]);
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('prints an empty JSON object with --json when nothing changed', async () => {
+      const deps = await indexProject();
+      await runWith(deps, 'tests', '--changed', '--json');
+      expect(JSON.parse(out)).toEqual({
+        changed: [],
+        tests: [],
+        total: 0,
+        truncated: false,
+        skipped: [],
+      });
+      expect(requestedIndexes).toEqual([]);
+    });
+
+    it('refuses more than 50 changed files', async () => {
+      const deps = await indexProject();
+      changedResult = Array.from({ length: 73 }, (_, i) => `src/f${i}.ts`);
+      await runWith(deps, 'tests', '--changed');
+      expect(err).toBe(
+        'error: git reports 73 changed files; at most 50 are allowed. Pass a closer ref or list the files.\n',
+      );
+      expect(out).toBe('');
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('refuses files together with --changed', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'tests', 'src/a.ts', '--changed');
+      expect(err).toBe('error: pass files or --changed, not both.\n');
+      expect(changedCalls).toEqual([]);
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('asks for files or --changed when given neither', async () => {
+      const { deps } = memory();
+      await runWith(deps, 'tests');
+      expect(err).toContain('pass the changed files or use --changed');
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('reports a git error with exit code 1', async () => {
+      const { deps } = memory();
+      changedError = new GitError('/x is not inside a git repository');
+      await runWith(deps, 'tests', '--changed', '--root', '/x');
+      expect(err).toBe('error: /x is not inside a git repository\n');
+      expect(out).toBe('');
+      expect(process.exitCode).toBe(1);
+    });
   });
 
   it('tests rejects a bad --depth', async () => {
