@@ -57,6 +57,11 @@ export interface ChangeImpactInput {
   symbol?: string;
   /** How many import levels to follow, from 1 to MAX_IMPACT_DEPTH. */
   depth?: number;
+  /**
+   * Skip the MAX_DEPS_PER_LEVEL and MAX_IMPACT_FILES cuts and return every affected file. Only the
+   * MAX_CALL_EDGES limit can still set `truncated`. For callers that filter the list themselves.
+   */
+  unbounded?: boolean;
 }
 
 export const DEFAULT_IMPACT_DEPTH = 1;
@@ -135,6 +140,7 @@ export async function getChangeImpact(
       path: input.path,
       direction: 'importers',
       depth,
+      ...(input.unbounded === true ? { perLevelLimit: Infinity } : {}),
     },
     links,
   );
@@ -214,13 +220,14 @@ export async function getChangeImpact(
     nameOnly: all.filter((f) => f.link === 'name-only').length,
     callSites: symbols.reduce((total, s) => total + s.callSites, 0),
   };
-  if (all.length > MAX_IMPACT_FILES) truncated = true;
+  const cut = input.unbounded !== true && all.length > MAX_IMPACT_FILES;
+  if (cut) truncated = true;
 
   return {
     path: start,
     ...(symbol !== undefined ? { symbol } : {}),
     symbols,
-    files: all.slice(0, MAX_IMPACT_FILES),
+    files: cut ? all.slice(0, MAX_IMPACT_FILES) : all,
     counts,
     truncated,
   };

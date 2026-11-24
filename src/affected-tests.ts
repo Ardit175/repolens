@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { GraphStore } from './graph/types.js';
-import { getChangeImpact } from './impact.js';
+import { normalisePath, UnknownFileError } from './deps.js';
+import { getChangeImpact, type ChangeImpact } from './impact.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
 import { compare, loadFileLinks } from './map/links.js';
 import type { VectorStore } from './store/types.js';
@@ -29,6 +30,8 @@ export interface AffectedTest {
 export interface AffectedTests {
   /** Normalised, deduplicated, in input order. */
   changed: string[];
+  /** Normalised, deduplicated, in input order: requested paths that are not indexed. Needs `skipUnknown`. */
+  skipped: string[];
   tests: AffectedTest[];
   /** Total before the MAX_AFFECTED_TESTS cut. */
   total: number;
@@ -40,6 +43,8 @@ export interface AffectedTestsInput {
   paths: string[];
   /** How many import levels to follow, from 1 to MAX_TESTS_DEPTH. */
   depth?: number;
+  /** Record paths that are not indexed in `skipped` instead of throwing. Default false. */
+  skipUnknown?: boolean;
 }
 
 export const DEFAULT_TESTS_DEPTH = 3;
@@ -186,6 +191,7 @@ export async function getAffectedTests(
     }));
 
   const changed: string[] = [];
+  const skipped: string[] = [];
   const byTest = new Map<string, Map<string, TestReason>>();
   let impactTruncated = false;
   const reasonsOf = (test: string): Map<string, TestReason> => {
@@ -195,7 +201,20 @@ export async function getAffectedTests(
   };
 
   for (const requested of input.paths) {
-    const impact = await getChangeImpact(store, graph, { path: requested, depth }, links);
+    let impact: ChangeImpact;
+    try {
+      impact = await getChangeImpact(
+        store,
+        graph,
+        { path: requested, depth, unbounded: true },
+        links,
+      );
+    } catch (error) {
+      if (input.skipUnknown !== true || !(error instanceof UnknownFileError)) throw error;
+      const unknown = normalisePath(requested);
+      if (!skipped.includes(unknown)) skipped.push(unknown);
+      continue;
+    }
     const start = impact.path;
     if (changed.includes(start)) continue;
     changed.push(start);
@@ -245,6 +264,7 @@ export async function getAffectedTests(
 
   return {
     changed,
+    skipped,
     tests: all.slice(0, MAX_AFFECTED_TESTS),
     total: all.length,
     truncated: all.length > MAX_AFFECTED_TESTS || impactTruncated,
@@ -276,10 +296,12 @@ function describeReason(reason: TestReason): string {
 
 /** Renders affected tests as text for the terminal and for MCP clients. */
 export function formatAffectedTests(result: AffectedTests): string {
-  const lines = [
-    `Changed (${result.changed.length}): ${result.changed.join(', ')}`,
-    `Tests to run (${result.total}):`,
-  ];
+  const changed = result.changed.length === 0 ? '(none)' : result.changed.join(', ');
+  const lines = [`Changed (${result.changed.length}): ${changed}`];
+  if (result.skipped.length > 0) {
+    lines.push(`Skipped (not indexed, ${result.skipped.length}): ${result.skipped.join(', ')}`);
+  }
+  lines.push(`Tests to run (${result.total}):`);
   if (result.tests.length === 0) {
     lines.push(
       '  (none). No indexed test file imports, calls or is named after the changed files.',
