@@ -39,7 +39,7 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 - `impact <file>` shows what a change to a file, or to one symbol of it (`--symbol <name>`), can reach: the files that import it up to `--depth 1..5` (default 1) and the files that call its symbols, grouped as direct, transitive and name-only callers (`--json`). Name-only callers match by symbol name and may be unrelated.
 
-- `tests <files...>` lists the test files to run after changing files: tests that import a changed file up to `--depth 1..5` (default 3), call its symbols, are named after it (`foo.test.ts`, `test_foo.py`, `FooTest.java`, `foo_test.go`) or are changed themselves, each with the reasons (`--json`). Name-only callers match by symbol name and may be unrelated.
+- `tests <files...>` lists the test files to run after changing files: tests that import a changed file up to `--depth 1..5` (default 3), call its symbols, are named after it (`foo.test.ts`, `test_foo.py`, `FooTest.java`, `foo_test.go`) or are changed themselves, each with the reasons (`--json`). Name-only callers match by symbol name and may be unrelated. With `--changed` the files come from git instead: the working tree against `HEAD`, or with `--changed main` against the merge base with `main`, plus untracked files; `--root <path>` (default `.`) is the indexed root, and changed files that are not indexed (docs, config) are listed as skipped.
 
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
@@ -55,6 +55,7 @@ npm run dev -- status --index web         # one index: counts, languages, embedd
 npm run dev -- deps src/auth.ts --index web --depth 2   # what src/auth.ts imports and what imports it (--json for raw output)
 npm run dev -- impact src/auth.ts --symbol AuthService.login --depth 2   # who is affected by a change (--json for raw output)
 npm run dev -- tests src/auth.ts src/db.ts --depth 2   # which tests to run after a change (--json for raw output)
+npm run dev -- tests --changed main --index web        # the same for every file changed on this branch
 npm run dev -- drop web --yes             # deletes the index and its graph
 ```
 
