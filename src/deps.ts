@@ -44,10 +44,15 @@ export interface FileDependenciesInput {
   path: string;
   direction?: DependencyDirection;
   depth?: number;
+  /**
+   * Most files listed per level. Defaults to MAX_DEPS_PER_LEVEL; `Infinity` lists every file.
+   * Must be a positive integer or `Infinity`.
+   */
+  perLevelLimit?: number;
 }
 
 /** Trims, turns backslashes into `/` and drops a leading `./`. */
-function normalisePath(input: string): string {
+export function normalisePath(input: string): string {
   let result = input.trim().replaceAll('\\', '/');
   while (result.startsWith('./')) result = result.slice(2);
   return result;
@@ -95,6 +100,7 @@ interface Walk {
 function walk(
   start: string,
   maxDepth: number,
+  perLevelLimit: number,
   next: (file: string) => Map<string, GraphEdge>,
   edgeOf: (file: string, via: string) => GraphEdge,
 ): Walk {
@@ -110,8 +116,8 @@ function walk(
       }
     }
     let files = [...found.keys()].sort(compare);
-    if (files.length > MAX_DEPS_PER_LEVEL) {
-      files = files.slice(0, MAX_DEPS_PER_LEVEL);
+    if (files.length > perLevelLimit) {
+      files = files.slice(0, perLevelLimit);
       truncated = true;
     }
     for (const file of files) {
@@ -141,6 +147,10 @@ export async function getFileDependencies(
   if (!Number.isInteger(depth) || depth < 1 || depth > MAX_DEPS_DEPTH) {
     throw new RangeError(`depth must be an integer from 1 to ${MAX_DEPS_DEPTH}`);
   }
+  const perLevelLimit = input.perLevelLimit ?? MAX_DEPS_PER_LEVEL;
+  if (perLevelLimit !== Infinity && (!Number.isInteger(perLevelLimit) || perLevelLimit < 1)) {
+    throw new RangeError('perLevelLimit must be a positive integer or Infinity');
+  }
   const start = normalisePath(input.path);
   const fileLinks = links ?? (await loadFileLinks(store, graph));
   if (!fileLinks.indexed.has(start)) throw unknownFile(start, fileLinks.indexed);
@@ -162,6 +172,7 @@ export async function getFileDependencies(
       : walk(
           start,
           depth,
+          perLevelLimit,
           (file) => forward.get(file) ?? none,
           (file, via) => forward.get(via)!.get(file)!,
         );
@@ -171,6 +182,7 @@ export async function getFileDependencies(
       : walk(
           start,
           depth,
+          perLevelLimit,
           (file) => backward.get(file) ?? none,
           (file, via) => forward.get(file)!.get(via)!,
         );

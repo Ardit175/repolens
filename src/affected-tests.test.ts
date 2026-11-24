@@ -348,6 +348,53 @@ describe('getAffectedTests', () => {
     expect(result.tests[0]?.path).toBe('d000/lib.test.ts');
   });
 
+  it('lists test importers that sort after more than 100 source importers', async () => {
+    const sources = Array.from(
+      { length: 150 },
+      (_, i) => `src/user${String(i).padStart(3, '0')}.ts`,
+    );
+    const tests = ['tests/a.test.ts', 'tests/b.test.ts', 'tests/c.test.ts'];
+    const imports: Record<string, string[]> = {};
+    for (const file of [...sources, ...tests]) imports[file] = ['../src/core'];
+    const { store, graph } = await setup({ files: ['src/core.ts', ...sources, ...tests], imports });
+    const result = await getAffectedTests(store, graph, { paths: ['src/core.ts'] });
+    expect(result.tests.map((t) => t.path)).toEqual(tests);
+    expect(result.total).toBe(3);
+    expect(result.truncated).toBe(false);
+  });
+
+  it('records unindexed paths with skipUnknown and still processes the rest', async () => {
+    const { store, graph } = await setup(BASE);
+    const result = await getAffectedTests(store, graph, {
+      paths: ['./gone.ts', 'src/auth.ts', 'gone.ts', 'other\\missing.ts'],
+      skipUnknown: true,
+    });
+    expect(result.changed).toEqual(['src/auth.ts']);
+    expect(result.skipped).toEqual(['gone.ts', 'other/missing.ts']);
+    expect(result.tests.map((t) => t.path)).toContain('src/auth.test.ts');
+  });
+
+  it('returns an empty result when every path is skipped', async () => {
+    const { store, graph } = await setup(BASE);
+    const result = await getAffectedTests(store, graph, { paths: ['gone.ts'], skipUnknown: true });
+    expect(result).toEqual({
+      changed: [],
+      skipped: ['gone.ts'],
+      tests: [],
+      total: 0,
+      truncated: false,
+    });
+  });
+
+  it('throws for an unindexed path without skipUnknown and has no skipped paths otherwise', async () => {
+    const { store, graph } = await setup(BASE);
+    await expect(getAffectedTests(store, graph, { paths: ['gone.ts'] })).rejects.toThrow(
+      UnknownFileError,
+    );
+    const result = await getAffectedTests(store, graph, { paths: ['src/auth.ts'] });
+    expect(result.skipped).toEqual([]);
+  });
+
   it('is not truncated for a small result', async () => {
     const { store, graph } = await setup(BASE);
     const result = await getAffectedTests(store, graph, { paths: ['src/auth.ts'] });
@@ -363,6 +410,7 @@ describe('formatAffectedTests', () => {
   it('renders every reason kind', () => {
     const result: AffectedTests = {
       changed: ['src/auth.ts', 'src/db.ts'],
+      skipped: [],
       total: 3,
       truncated: false,
       tests: [
@@ -406,7 +454,15 @@ describe('formatAffectedTests', () => {
   });
 
   it('renders the empty case', () => {
-    expect(formatAffectedTests({ changed: ['a.ts'], tests: [], total: 0, truncated: false })).toBe(
+    expect(
+      formatAffectedTests({
+        changed: ['a.ts'],
+        skipped: [],
+        tests: [],
+        total: 0,
+        truncated: false,
+      }),
+    ).toBe(
       [
         'Changed (1): a.ts',
         'Tests to run (0):',
@@ -416,11 +472,43 @@ describe('formatAffectedTests', () => {
     );
   });
 
+  it('renders the skipped line and an empty changed list', () => {
+    expect(
+      formatAffectedTests({
+        changed: [],
+        skipped: ['a.ts', 'b.ts'],
+        tests: [],
+        total: 0,
+        truncated: false,
+      }),
+    ).toBe(
+      [
+        'Changed (0): (none)',
+        'Skipped (not indexed, 2): a.ts, b.ts',
+        'Tests to run (0):',
+        '  (none). No indexed test file imports, calls or is named after the changed files.',
+        note,
+      ].join('\n'),
+    );
+  });
+
   it('renders the truncation notices', () => {
     const tests = [{ path: 'a.test.ts', reasons: [{ kind: 'name' as const, changed: 'a.ts' }] }];
-    const cut = formatAffectedTests({ changed: ['a.ts'], tests, total: 300, truncated: true });
+    const cut = formatAffectedTests({
+      changed: ['a.ts'],
+      skipped: [],
+      tests,
+      total: 300,
+      truncated: true,
+    });
     expect(cut).toContain(`... truncated: showing ${MAX_AFFECTED_TESTS} of 300\n${note}`);
-    const limited = formatAffectedTests({ changed: ['a.ts'], tests, total: 1, truncated: true });
+    const limited = formatAffectedTests({
+      changed: ['a.ts'],
+      skipped: [],
+      tests,
+      total: 1,
+      truncated: true,
+    });
     expect(limited).toContain(`... some links were left out because of a limit\n${note}`);
   });
 });

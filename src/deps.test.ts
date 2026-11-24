@@ -192,6 +192,56 @@ describe('getFileDependencies', () => {
   });
 });
 
+describe('perLevelLimit', () => {
+  const importers = Array.from({ length: MAX_DEPS_PER_LEVEL + 20 }, (_, i) => {
+    return `src/user${String(i).padStart(3, '0')}.ts`;
+  });
+  const imports: Record<string, Array<[string, number]>> = {};
+  for (const file of importers) imports[file] = [['./target', 1]];
+  const files = ['src/target.ts', ...importers];
+
+  it('lists every file on a level when it is Infinity', async () => {
+    const { store, graph } = await setup(files, imports);
+    const deps = await getFileDependencies(store, graph, {
+      path: 'src/target.ts',
+      direction: 'importers',
+      perLevelLimit: Infinity,
+    });
+    expect(deps.importers).toHaveLength(importers.length);
+    expect(deps.truncated).toBe(false);
+  });
+
+  it('applies a custom limit', async () => {
+    const { store, graph } = await setup(files, imports);
+    const deps = await getFileDependencies(store, graph, {
+      path: 'src/target.ts',
+      direction: 'importers',
+      perLevelLimit: 5,
+    });
+    expect(deps.importers).toHaveLength(5);
+    expect(deps.truncated).toBe(true);
+  });
+
+  it('still caps at MAX_DEPS_PER_LEVEL by default', async () => {
+    const { store, graph } = await setup(files, imports);
+    const deps = await getFileDependencies(store, graph, {
+      path: 'src/target.ts',
+      direction: 'importers',
+    });
+    expect(deps.importers).toHaveLength(MAX_DEPS_PER_LEVEL);
+    expect(deps.truncated).toBe(true);
+  });
+
+  it('rejects a limit that is not a positive integer or Infinity', async () => {
+    const { store, graph } = await setup(['a.ts']);
+    for (const perLevelLimit of [0, 1.5, -1, NaN]) {
+      await expect(
+        getFileDependencies(store, graph, { path: 'a.ts', perLevelLimit }),
+      ).rejects.toThrow(RangeError);
+    }
+  });
+});
+
 describe('formatFileDependencies', () => {
   const full: FileDependencies = {
     path: 'src/a.ts',

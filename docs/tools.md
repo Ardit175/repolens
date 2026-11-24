@@ -84,7 +84,9 @@ Picked by import links, call sites (matched by name) and test file naming conven
 
 An unknown path, an empty or too long `paths` list and a `depth` outside 1 to 5 are error results. The message for an unknown path suggests indexed paths with the same file name.
 
-The same output is available from the terminal with `repolens tests <files...> [--depth 1..5] [--json] [--index <name>]`.
+The same output is available from the terminal with `repolens tests <files...> [--depth 1..5] [--json] [--index <name>]`. `repolens tests --changed [ref] [--root <path>]` takes the changed files from git instead of the arguments: the working tree (staged, unstaged and untracked files) against `HEAD`, or against the merge base of `ref` and `HEAD`, so a branch's own commits count but newer commits on `ref` do not. Paths are relative to `--root` (default `.`), which should be the indexed root. Changed files that are not indexed are listed under `Skipped` instead of failing; with no changes it prints `No changed files compared to <ref>.` and more than 50 changed files is an error.
+
+Every importer and caller is considered before the list is filtered to tests, so the 100-file cap of `change_impact` never hides a test file.
 
 ## index_status
 

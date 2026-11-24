@@ -359,6 +359,25 @@ describe('getChangeImpact', () => {
     expect(impact.files[0]?.path).toBe('u000.go');
   });
 
+  it('returns every importer when unbounded and cuts at the limit by default', async () => {
+    const importers = Array.from(
+      { length: MAX_IMPACT_FILES + 20 },
+      (_, i) => `src/u${String(i).padStart(3, '0')}.ts`,
+    );
+    const layout: Layout = {
+      symbols: Object.fromEntries(['lib.ts', ...importers].map((file) => [file, []])),
+      imports: Object.fromEntries(importers.map((file) => [file, [['../lib', 1]]])),
+    };
+    const { store, graph } = await setup(layout);
+    const all = await getChangeImpact(store, graph, { path: 'lib.ts', unbounded: true });
+    expect(all.files).toHaveLength(importers.length);
+    expect(all.counts.direct).toBe(importers.length);
+    expect(all.truncated).toBe(false);
+    const cut = await getChangeImpact(store, graph, { path: 'lib.ts' });
+    expect(cut.files).toHaveLength(MAX_IMPACT_FILES);
+    expect(cut.truncated).toBe(true);
+  });
+
   it('reports truncation when a call lookup hits its limit', async () => {
     const calls = Array.from({ length: MAX_CALL_EDGES }, (_, i) => ({
       target: 'run',

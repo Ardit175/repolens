@@ -16,6 +16,7 @@ import {
   DEFAULT_TESTS_DEPTH,
   formatAffectedTests,
   getAffectedTests,
+  MAX_CHANGED_FILES,
   MAX_TESTS_DEPTH,
 } from './affected-tests.js';
 import { formatBenchmark, parseQueries, runBenchmark } from './bench/bench.js';
@@ -34,6 +35,7 @@ import {
   getChangeImpact,
   MAX_IMPACT_DEPTH,
 } from './impact.js';
+import { changedFiles } from './git.js';
 import { indexRepository, type IndexStats } from './indexer.js';
 import { detectLanguage, hasKnownExtension } from './language.js';
 import { buildMapData } from './map/build.js';
@@ -67,6 +69,7 @@ const defaultIo: Io = {
 export interface Deps {
   createRuntime: (index?: string) => Runtime;
   listIndexes: () => Promise<IndexInfo[]>;
+  changedFiles: (root: string, ref?: string) => Promise<string[]>;
   dropIndex: (name: string) => Promise<{ chunks: boolean; graph: boolean }>;
   createEmbeddings: () => EmbeddingProvider;
   serve: (runtime: Runtime, version: string) => Promise<void>;
@@ -77,6 +80,7 @@ export interface Deps {
 const defaultDeps: Deps = {
   createRuntime: (index) => createRuntime(process.env, index === undefined ? {} : { index }),
   listIndexes: () => listIndexes(qdrantConnection()),
+  changedFiles,
   dropIndex: (name) => dropIndex(qdrantConnection(), name),
   createEmbeddings: () => createEmbeddingProvider(),
   serve: serveStdio,
@@ -633,7 +637,12 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
     program
       .command('tests')
       .description('List the test files to run after changing files')
-      .argument('<files...>', 'changed paths relative to the indexed root, e.g. src/auth.ts')
+      .argument('[files...]', 'changed paths relative to the indexed root, e.g. src/auth.ts')
+      .option(
+        '--changed [ref]',
+        'take the changed files from git: against HEAD, or against the merge base with <ref>',
+      )
+      .option('--root <path>', 'indexed repository root, used with --changed', '.')
       .option(
         '--depth <n>',
         `import levels to follow, 1 to ${MAX_TESTS_DEPTH}`,
@@ -641,15 +650,61 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
         DEFAULT_TESTS_DEPTH,
       )
       .option('--json', 'print the affected tests as JSON'),
-  ).action(async (files: string[], options: { depth: number; json?: boolean; index?: string }) => {
-    try {
-      const { store, graph } = deps.createRuntime(options.index);
-      const result = await getAffectedTests(store, graph, { paths: files, depth: options.depth });
-      io.out((options.json ? JSON.stringify(result, null, 2) : formatAffectedTests(result)) + '\n');
-    } catch (error) {
-      fail(io, error);
-    }
-  });
+  ).action(
+    async (
+      files: string[],
+      options: {
+        changed?: string | true;
+        root: string;
+        depth: number;
+        json?: boolean;
+        index?: string;
+      },
+    ) => {
+      try {
+        const gitMode = options.changed !== undefined;
+        if (gitMode && files.length > 0) {
+          throw new Error('pass files or --changed, not both.');
+        }
+        if (!gitMode && files.length === 0) {
+          throw new Error('pass the changed files or use --changed to take them from git.');
+        }
+        let paths = files;
+        if (gitMode) {
+          const ref = options.changed === true ? undefined : options.changed;
+          paths = await deps.changedFiles(options.root, ref);
+          if (paths.length === 0) {
+            io.out(
+              options.json
+                ? JSON.stringify(
+                    { changed: [], tests: [], total: 0, truncated: false, skipped: [] },
+                    null,
+                    2,
+                  ) + '\n'
+                : `No changed files compared to ${ref ?? 'HEAD'}.\n`,
+            );
+            return;
+          }
+          if (paths.length > MAX_CHANGED_FILES) {
+            throw new Error(
+              `git reports ${paths.length} changed files; at most ${MAX_CHANGED_FILES} are allowed. Pass a closer ref or list the files.`,
+            );
+          }
+        }
+        const { store, graph } = deps.createRuntime(options.index);
+        const result = await getAffectedTests(store, graph, {
+          paths,
+          depth: options.depth,
+          ...(gitMode ? { skipUnknown: true } : {}),
+        });
+        io.out(
+          (options.json ? JSON.stringify(result, null, 2) : formatAffectedTests(result)) + '\n',
+        );
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
 
   program
     .command('indexes')
