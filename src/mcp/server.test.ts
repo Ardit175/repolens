@@ -28,7 +28,7 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the ten tools with schemas', async () => {
+  it('identifies itself and advertises the eleven tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -42,6 +42,7 @@ describe('repolens MCP server', () => {
       'index_status',
       'list_files',
       'search_code',
+      'unused_symbols',
     ]);
     const search = tools.find((t) => t.name === 'search_code');
     expect(search?.inputSchema.required).toEqual(['query']);
@@ -158,6 +159,19 @@ describe('repolens MCP server', () => {
       paths: Array.from({ length: 51 }, (_, i) => `src/f${i}.ts`),
     });
     expect(tooMany.isError).toBe(true);
+  });
+
+  it('unused_symbols lists uncalled functions and honours its filters', async () => {
+    const found = await call('unused_symbols', {});
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('  src/auth.ts:5-7  method  AuthService.logout');
+    expect(found.text).toContain('  scripts/seed.py:1-2  function  seed_database');
+    expect(found.text).not.toContain('openDatabase');
+    const filtered = await call('unused_symbols', { path: 'scripts/', language: 'python' });
+    expect(filtered.text).toContain('Unused symbols (1)');
+    expect(filtered.text).not.toContain('AuthService');
+    expect((await call('unused_symbols', { path: '' })).isError).toBe(true);
+    expect((await call('unused_symbols', { include_tests: 'yes' })).isError).toBe(true);
   });
 
   it('find_references lists calls and imports, and answers normally when there are none', async () => {

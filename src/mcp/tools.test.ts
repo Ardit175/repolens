@@ -16,6 +16,7 @@ import {
   MAX_GRAPH_LEVEL_NODES,
   searchCode,
   ToolError,
+  unusedSymbols,
 } from './tools.js';
 
 let runtime: Runtime;
@@ -326,5 +327,30 @@ describe('affectedTests', () => {
     await expect(affectedTests(withTests, { paths: ['src/db.ts'], depth: 9 })).rejects.toThrow(
       'depth must be an integer from 1 to 5',
     );
+  });
+});
+
+describe('unusedSymbols', () => {
+  it('lists functions and methods nothing calls, and skips the ones that are called', async () => {
+    const text = await unusedSymbols(await seededRuntime(), {});
+    expect(text).toContain('Unused symbols (2) of 4 functions and methods checked:');
+    expect(text).toContain('scripts/seed.py:1-2  function  seed_database');
+    expect(text).toContain('src/auth.ts:5-7  method  AuthService.logout');
+    expect(text).not.toContain('openDatabase');
+    expect(text).not.toContain('AuthService.login');
+  });
+
+  it('filters by path and language and counts test calls as uses', async () => {
+    const withTests = await seededRuntime({ withTests: true });
+    const text = await unusedSymbols(withTests, { path: 'src/', language: 'typescript' });
+    expect(text).toContain('Unused symbols (1) of 3');
+    const all = await unusedSymbols(withTests, { include_tests: true });
+    expect(all).toContain('src/auth.test.ts:3-5  function  checksLogin');
+  });
+
+  it('answers normally for a prefix that matches nothing', async () => {
+    const text = await unusedSymbols(await seededRuntime(), { path: 'nowhere/' });
+    expect(text).toContain('Unused symbols (0) of 0');
+    expect(text).toContain('(none)');
   });
 });

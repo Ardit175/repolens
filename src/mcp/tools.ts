@@ -11,6 +11,7 @@ import { formatChangeImpact, getChangeImpact, UnknownSymbolError } from '../impa
 import type { Runtime } from '../runtime.js';
 import { describeMatch, searchIndex, type SearchMode } from '../search.js';
 import { formatIndexStatus, getIndexStatus } from '../status.js';
+import { formatUnusedSymbols, getUnusedSymbols } from '../unused.js';
 
 /** Raised for a request that is valid but has no answer, for example an unknown symbol. */
 export class ToolError extends Error {}
@@ -367,4 +368,23 @@ export async function affectedTests(
     }
     throw error;
   }
+}
+
+export interface UnusedSymbolsToolInput {
+  path?: string | undefined;
+  language?: string | undefined;
+  include_tests?: boolean | undefined;
+}
+
+/** The functions and methods nothing in the index calls or imports by name: likely dead code. */
+export async function unusedSymbols(
+  runtime: Runtime,
+  input: UnusedSymbolsToolInput,
+): Promise<string> {
+  const result = await getUnusedSymbols(runtime.store, runtime.graph, {
+    ...(input.path === undefined ? {} : { pathPrefix: input.path }),
+    ...(input.language === undefined ? {} : { language: input.language }),
+    ...(input.include_tests === undefined ? {} : { includeTests: input.include_tests }),
+  });
+  return formatUnusedSymbols(result);
 }

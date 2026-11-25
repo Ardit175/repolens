@@ -817,6 +817,44 @@ describe('repolens index, search and doctor with a store', () => {
     });
   });
 
+  it('unused prints the functions nothing calls', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\nexport function dead() { return 2; }\n');
+    write('src/b.test.ts', "import { b } from './b.js';\nexport function t() { return b(); }\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'unused');
+    expect(out).toContain('Unused symbols (2) of 3 functions and methods checked:');
+    expect(out).toContain('src/a.ts:2-2  function  a');
+    expect(out).toContain('src/b.ts:2-2  function  dead');
+    expect(out).not.toContain('b.test.ts');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('unused --json and the filters print the result as JSON', async () => {
+    const { deps } = memory();
+    write('src/b.ts', 'export function dead() { return 2; }\n');
+    write('src/b.test.ts', 'export function t() { return 1; }\n');
+    write('lib/c.py', 'def other():\n    return 1\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(
+      deps,
+      'unused',
+      '--json',
+      '--path',
+      'src/',
+      '--language',
+      'typescript',
+      '--include-tests',
+    );
+    const result = JSON.parse(out) as { symbols: { path: string; name: string }[]; total: number };
+    expect(result.total).toBe(2);
+    expect(result.symbols.map((s) => s.name)).toEqual(['t', 'dead']);
+  });
+
   it('tests rejects a bad --depth', async () => {
     await run('tests', 'a.ts', '--depth', '0');
     expect(err).toContain('must be a positive integer');
@@ -891,6 +929,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['deps', () => ['deps', 'a.ts']],
       ['impact', () => ['impact', 'a.ts']],
       ['tests', () => ['tests', 'a.ts']],
+      ['unused', () => ['unused']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {
