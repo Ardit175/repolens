@@ -41,6 +41,8 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 - `tests <files...>` lists the test files to run after changing files: tests that import a changed file up to `--depth 1..5` (default 3), call its symbols, are named after it (`foo.test.ts`, `test_foo.py`, `FooTest.java`, `foo_test.go`) or are changed themselves, each with the reasons (`--json`). Name-only callers match by symbol name and may be unrelated. With `--changed` the files come from git instead: the working tree against `HEAD`, or with `--changed main` against the merge base with `main`, plus untracked files; `--root <path>` (default `.`) is the indexed root, and changed files that are not indexed (docs, config) are listed as skipped.
 
+- `unused` lists functions and methods that nothing in the index calls or imports by name, as candidates for dead code (`--path <prefix>`, `--language <lang>`, `--include-tests`, `--json`). Usage is counted across the whole index, test files are skipped unless `--include-tests` (their calls still count), and entry points and implicit methods such as `main`, constructors and `__init__` are never listed. Matching is by name only, so check before deleting.
+
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
 ### Several repositories
@@ -80,6 +82,7 @@ claude mcp add web --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/re
 | `change_impact`     | Files that import a file (up to `depth` levels) and files that call its symbols, grouped as direct, transitive and name-only callers; optional `symbol`, `depth` (1-5, default 1)                              |
 | `file_dependencies` | Files a file imports and files that import it, with line and module of each import; `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1)                                   |
 | `affected_tests`    | Test files to run after changing `paths` (1-50): tests that import a changed file (up to `depth` levels), call its symbols, are named after it or are changed, with reasons; optional `depth` (1-5, default 3) |
+| `unused_symbols`    | Functions and methods no call or named import refers to (likely dead code, matched by name); optional `path` prefix, `language`, `include_tests`                                                               |
 | `index_status`      | Index name, embedding provider, file and chunk counts, watcher state and warnings (no arguments)                                                                                                               |
 
 `find_references` and `call_graph` match by name only. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together.

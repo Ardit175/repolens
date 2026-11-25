@@ -247,6 +247,21 @@ describe('getAffectedTests', () => {
     ]);
   });
 
+  it('skips name-only calls from a changed test but keeps calls backed by an import', async () => {
+    const { store, graph } = await setup({
+      files: ['src/a.test.ts', 'src/b.test.ts', 'src/c.test.ts', 'src/helpers.test.ts'],
+      symbols: { 'src/helpers.test.ts': ['write'] },
+      imports: { 'src/c.test.ts': ['./helpers.test'] },
+      calls: { 'src/a.test.ts': ['write'], 'src/c.test.ts': ['write'] },
+    });
+    const result = await getAffectedTests(store, graph, { paths: ['src/helpers.test.ts'] });
+    expect(result.tests.map((t) => t.path)).toEqual(['src/helpers.test.ts', 'src/c.test.ts']);
+    expect(result.tests[1]?.reasons).toEqual([
+      { kind: 'imports', changed: 'src/helpers.test.ts', depth: 1 },
+      { kind: 'calls', changed: 'src/helpers.test.ts', calls: 1 },
+    ]);
+  });
+
   it('merges reasons from several changed files on one test and dedupes paths', async () => {
     const { store, graph } = await setup(BASE);
     const result = await getAffectedTests(store, graph, {

@@ -53,6 +53,7 @@ import { createRuntime, type Runtime } from './runtime.js';
 import { formatIndexStatus, getIndexStatus, type WatchState } from './status.js';
 import { InMemoryVectorStore } from './store/index.js';
 import { formatHits, searchIndex, type SearchMode } from './search.js';
+import { formatUnusedSymbols, getUnusedSymbols } from './unused.js';
 import { loadIgnoreFilter, walkFiles } from './walker.js';
 import { watchRepository, type WatchOptions, type Watcher } from './watch.js';
 
@@ -699,6 +700,38 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
         });
         io.out(
           (options.json ? JSON.stringify(result, null, 2) : formatAffectedTests(result)) + '\n',
+        );
+      } catch (error) {
+        fail(io, error);
+      }
+    },
+  );
+
+  withIndexOption(
+    program
+      .command('unused')
+      .description('List functions and methods nothing in the index calls or imports by name')
+      .option('--path <prefix>', 'only report files under this directory prefix, e.g. src/')
+      .option('--language <lang>', 'only report this language, e.g. typescript')
+      .option('--include-tests', 'also report symbols in test files')
+      .option('--json', 'print the unused symbols as JSON'),
+  ).action(
+    async (options: {
+      path?: string;
+      language?: string;
+      includeTests?: boolean;
+      json?: boolean;
+      index?: string;
+    }) => {
+      try {
+        const { store, graph } = deps.createRuntime(options.index);
+        const result = await getUnusedSymbols(store, graph, {
+          ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+          ...(options.language === undefined ? {} : { language: options.language }),
+          ...(options.includeTests === true ? { includeTests: true } : {}),
+        });
+        io.out(
+          (options.json ? JSON.stringify(result, null, 2) : formatUnusedSymbols(result)) + '\n',
         );
       } catch (error) {
         fail(io, error);

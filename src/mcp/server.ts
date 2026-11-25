@@ -22,6 +22,7 @@ import {
   MAX_SEARCH_RESULTS,
   searchCode,
   ToolError,
+  unusedSymbols,
 } from './tools.js';
 
 /** Runs a tool and turns failures into an MCP error result, so the model sees what went wrong. */
@@ -208,6 +209,28 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => affectedTests(runtime, input)),
+  );
+
+  server.registerTool(
+    'unused_symbols',
+    {
+      description:
+        'Lists functions and methods that no call and no named import in the index refers to, as candidates for dead code. Test files are skipped unless include_tests is set (their calls still count as uses), and names that frameworks call implicitly (main, constructors, __init__, Go Test functions, ...) are never listed. Matching is by name only: a same-named symbol elsewhere counts as a use, while dynamic dispatch, callbacks passed by reference and callers outside the index are invisible, so results can be false positives.',
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Only report files under this directory, e.g. "src/"'),
+        language: z.string().optional().describe('Only report this language, e.g. "typescript"'),
+        include_tests: z
+          .boolean()
+          .optional()
+          .describe('Also report symbols in test files, default false'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => unusedSymbols(runtime, input)),
   );
 
   server.registerTool(
