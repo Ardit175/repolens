@@ -1,6 +1,6 @@
 # MCP tools
 
-`repolens serve` registers ten read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
+`repolens serve` registers eleven read-only tools. All of them return text. A missing symbol or file comes back as an MCP error result (not a protocol error), so the model can read the message and try something else.
 
 | Tool                | Arguments                                                                                                 | Returns                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -13,6 +13,7 @@
 | `file_dependencies` | `path`; optional `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1) | The files it imports and the files that import it, each with line and module; its unresolved imports     |
 | `change_impact`     | `path`; optional `symbol`, `depth` (1-5, default 1)                                                       | The files that import it and the files that call its symbols, grouped as direct, transitive or name-only |
 | `affected_tests`    | `paths` (1-50); optional `depth` (1-5, default 3)                                                         | The test files to run after changing those files, each with the reasons it was picked                    |
+| `unused_symbols`    | optional `path` prefix, `language`, `include_tests`                                                       | Functions and methods that no call and no named import refers to: likely dead code                       |
 | `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                       |
 
 ## file_dependencies
@@ -66,7 +67,7 @@ Takes `paths`, one to 50 changed files relative to the indexed root, for example
 
 - **changed**: the test file is one of the changed paths.
 - **imports**: the test imports a changed file directly, or through other files up to `depth` levels (the output names the file it was reached via).
-- **calls**: the test calls a symbol defined in a changed file. A test that does not import the file is marked as a name-only caller, because call targets are stored as names only and it may be unrelated.
+- **calls**: the test calls a symbol defined in a changed file. A test that does not import the file is marked as a name-only caller, because call targets are stored as names only and it may be unrelated. When the changed file is itself a test, name-only callers are skipped, because test helpers such as `write` or `run` share names across test files.
 - **name**: the test is named after a changed file. Among tests with the same name and language, only those sharing the most leading directories with the changed file are kept, so a common name such as `index` does not match tests all over the repository.
 
 A path is a test when its file name follows a convention (`foo.test.ts`, `foo.spec.js`, `test_foo.py`, `foo_test.py`, `foo_test.go`, `foo_spec.rb`, `foo_test.rb`, `test_foo.rb`, `foo_test.rs`, `foo_test.c`, `foo_test.cc`, `foo_test.cpp`, `test_foo.c`, `FooTest.java`, `FooTests.cs`, `FooSpec.scala`, and the same for `.kt`, `.swift` and `.php`) or when it sits in a `__tests__`, `tests`, `test` or `spec` directory. Files under `fixtures`, `__fixtures__`, `testdata` and `__snapshots__` are never tests.
@@ -87,6 +88,23 @@ An unknown path, an empty or too long `paths` list and a `depth` outside 1 to 5 
 The same output is available from the terminal with `repolens tests <files...> [--depth 1..5] [--json] [--index <name>]`. `repolens tests --changed [ref] [--root <path>]` takes the changed files from git instead of the arguments: the working tree (staged, unstaged and untracked files) against `HEAD`, or against the merge base of `ref` and `HEAD`, so a branch's own commits count but newer commits on `ref` do not. Paths are relative to `--root` (default `.`), which should be the indexed root. Changed files that are not indexed are listed under `Skipped` instead of failing; with no changes it prints `No changed files compared to <ref>.` and more than 50 changed files is an error.
 
 Every importer and caller is considered before the list is filtered to tests, so the 100-file cap of `change_impact` never hides a test file.
+
+## unused_symbols
+
+Takes no required arguments and lists the functions and methods that nothing in the index calls or imports by name, as candidates for dead code. `path` (a directory prefix such as `src/`) and `language` (such as `typescript`) limit which symbols are reported; usage is always counted across the whole index, so a function in `src/` called from `scripts/` is not listed. `include_tests` (default false) also reports symbols defined in test files; calls made from test files count as uses either way.
+
+A symbol is used when any call edge or any named import has its name as the target. A call from inside the symbol itself does not count, so a function that only calls itself is listed. Because matching is by name only, a same-named method of another class counts as a use, while dynamic dispatch, reflection, callbacks passed by reference and callers outside the index are invisible. Read the list as candidates and check before deleting.
+
+Names that a framework or the language calls implicitly are never listed: `main`, `constructor`, `init`, `deinit`, `__init__` and other Python dunders, `toString`, `equals`, `hashCode`, `String`, `Error`, `ServeHTTP`, `setUp`, `tearDown`, and Go `TestXxx`, `BenchmarkXxx` and `ExampleXxx` functions. Symbols are ordered by path then line, and at most 200 are listed; the output says when it is cut.
+
+```text
+Unused symbols (2) of 14 functions and methods checked:
+  scripts/seed.py:1-2  function  seed_database
+  src/auth.ts:5-7  method  AuthService.logout
+Matched by name: a symbol called only through dynamic dispatch, reflection, callbacks passed by reference or from outside the index shows up here too, so check before deleting.
+```
+
+The same output is available from the terminal with `repolens unused [--path <prefix>] [--language <lang>] [--include-tests] [--json] [--index <name>]`.
 
 ## index_status
 
