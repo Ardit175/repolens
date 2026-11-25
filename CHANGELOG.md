@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.15.0](https://github.com/Ardit175/repolens/compare/repolens-v0.14.0...repolens-v0.15.0) (2026-11-25)
+
+
+### Features
+
+* add the unused_symbols MCP tool and the repolens unused command ([200298a](https://github.com/Ardit175/repolens/commit/200298a4929e5ff3e2c4132a86c06ac3495c34eb))
+* find functions and methods nothing calls or imports by name ([afa1787](https://github.com/Ardit175/repolens/commit/afa17879fb0c603e3a5bd7108eeb494edc1d5691))
+* list the files changed in a git working tree ([01df3d1](https://github.com/Ardit175/repolens/commit/01df3d1cbd9f366365c17f49735317749f503999))
+* list unused functions and methods ([5ca145d](https://github.com/Ardit175/repolens/commit/5ca145dcef64f0cf0805fe6ca7112aecba33b960))
+* take the changed files for repolens tests from git ([9c796f4](https://github.com/Ardit175/repolens/commit/9c796f48359df9c250efa365fd5fbaf2b5c501cb))
+* take the changed files for repolens tests from git with --changed ([bc4c01d](https://github.com/Ardit175/repolens/commit/bc4c01d0faf4caec62dd2dc9191d030f67bad999))
+
+
+### Bug Fixes
+
+* consider every importer and caller when picking affected tests ([5961b85](https://github.com/Ardit175/repolens/commit/5961b8578d11fe2eb5422a4a845407fe1f800ea4))
+* skip name-only call reasons when the changed file is a test ([dbd157f](https://github.com/Ardit175/repolens/commit/dbd157fbaaf114ebddab28a5935d57a4c8aa11f3))
+
 ## [0.14.0](https://github.com/Ardit175/repolens/compare/repolens-v0.13.0...repolens-v0.14.0) (2026-11-22)
 
 
