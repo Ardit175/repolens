@@ -224,21 +224,24 @@ export async function getAffectedTests(
     if (startIsTest) addReason(reasonsOf(start), { kind: 'changed', changed: start });
     for (const file of impact.files) {
       if (!isTestFile(file.path)) continue;
-      const reasons = reasonsOf(file.path);
+      const add = (reason: TestReason): void => addReason(reasonsOf(file.path), reason);
       if (file.importDepth !== undefined) {
-        addReason(reasons, {
+        add({
           kind: 'imports',
           changed: start,
           depth: file.importDepth,
           ...(file.via !== undefined ? { via: file.via } : {}),
         });
       }
-      if (file.calls.length > 0) {
-        addReason(reasons, {
+      // A changed test's helpers (`write`, `run`, ...) share names with helpers in other tests,
+      // so name-only call matches from a test are noise rather than a reason to run another test.
+      const nameOnly = file.link === 'name-only';
+      if (file.calls.length > 0 && !(startIsTest && nameOnly)) {
+        add({
           kind: 'calls',
           changed: start,
           calls: file.calls.length,
-          ...(file.link === 'name-only' ? { nameOnly: true } : {}),
+          ...(nameOnly ? { nameOnly: true } : {}),
         });
       }
     }
