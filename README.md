@@ -43,6 +43,8 @@ npm run dev -- map -o repolens-map.html   # interactive dependency map, open it 
 
 - `unused` lists functions and methods that nothing in the index calls or imports by name, as candidates for dead code (`--path <prefix>`, `--language <lang>`, `--include-tests`, `--json`). Usage is counted across the whole index, test files are skipped unless `--include-tests` (their calls still count), and entry points and implicit methods such as `main`, constructors and `__init__` are never listed. Matching is by name only, so check before deleting.
 
+- `cycles` lists groups of files that import each other in a ring, each with one shortest import loop and its lines, largest first, at most 50 (`--path <prefix>` keeps cycles that touch a file under it, `--json`). Imports resolve by path, so packages, C# namespaces and Swift modules are not linked.
+
 - `bench <path> --queries <file>` measures index time, search latency and recall on a question set, without touching your index (see docs/benchmarks.md). More detail is in [docs/](docs/README.md).
 
 ### Several repositories
@@ -83,6 +85,7 @@ claude mcp add web --env QDRANT_URL=http://localhost:6333 -- npx -y @ardit175/re
 | `file_dependencies` | Files a file imports and files that import it, with line and module of each import; `direction` (`imports`, `importers` or `both`, default `both`), `depth` (1-5, default 1)                                   |
 | `affected_tests`    | Test files to run after changing `paths` (1-50): tests that import a changed file (up to `depth` levels), call its symbols, are named after it or are changed, with reasons; optional `depth` (1-5, default 3) |
 | `unused_symbols`    | Functions and methods no call or named import refers to (likely dead code, matched by name); optional `path` prefix, `language`, `include_tests`                                                               |
+| `import_cycles`     | Groups of files that import each other in a ring, each with a shortest import loop; optional `path` prefix                                                                                                     |
 | `index_status`      | Index name, embedding provider, file and chunk counts, watcher state and warnings (no arguments)                                                                                                               |
 
 `find_references` and `call_graph` match by name only. repolens does not resolve types or modules, so two unrelated functions with the same name are reported together.

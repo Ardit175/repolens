@@ -14,6 +14,7 @@
 | `change_impact`     | `path`; optional `symbol`, `depth` (1-5, default 1)                                                       | The files that import it and the files that call its symbols, grouped as direct, transitive or name-only |
 | `affected_tests`    | `paths` (1-50); optional `depth` (1-5, default 3)                                                         | The test files to run after changing those files, each with the reasons it was picked                    |
 | `unused_symbols`    | optional `path` prefix, `language`, `include_tests`                                                       | Functions and methods that no call and no named import refers to: likely dead code                       |
+| `import_cycles`     | optional `path` prefix                                                                                    | Groups of files that import each other in a ring, each with one shortest import loop                     |
 | `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                       |
 
 ## file_dependencies
@@ -105,6 +106,23 @@ Matched by name: a symbol called only through dynamic dispatch, reflection, call
 ```
 
 The same output is available from the terminal with `repolens unused [--path <prefix>] [--language <lang>] [--include-tests] [--json] [--index <name>]`.
+
+## import_cycles
+
+Takes no required arguments and lists the groups of indexed files that import each other in a ring, directly or through other files. Each group is a strongly connected component of the file import graph with two or more files, shown with one shortest import loop that starts and ends at its first file (sorted by path) and the line and module of every import in it. `path` (a directory prefix such as `src/`) keeps a cycle when any of its files is under that prefix; the graph itself always covers the whole index. Groups are ordered by size, largest first, then by first file, and at most 50 are listed; the output says when it is cut.
+
+Imports resolve by path against the indexed files, so packages, C# namespaces and Swift modules are not linked and cycles through them are not shown.
+
+```text
+Import cycles (1) covering 3 files:
+  1. 3 files: src/a.ts, src/b.ts, src/c.ts
+     src/a.ts:1 imports ./b.js -> src/b.ts
+     src/b.ts:2 imports ./c.js -> src/c.ts
+     src/c.ts:1 imports ./a.js -> src/a.ts
+Imports resolve by path only; packages, C# namespaces and Swift modules are not linked, so cycles through them are not shown.
+```
+
+The same output is available from the terminal with `repolens cycles [--path <prefix>] [--json] [--index <name>]`.
 
 ## index_status
 

@@ -1,5 +1,6 @@
 import { formatAffectedTests, getAffectedTests } from '../affected-tests.js';
 import type { Chunk } from '../chunker/types.js';
+import { formatImportCycles, getImportCycles } from '../cycles.js';
 import {
   formatFileDependencies,
   getFileDependencies,
@@ -387,4 +388,19 @@ export async function unusedSymbols(
     ...(input.include_tests === undefined ? {} : { includeTests: input.include_tests }),
   });
   return formatUnusedSymbols(result);
+}
+
+export interface ImportCyclesToolInput {
+  path?: string | undefined;
+}
+
+/** The groups of indexed files that import each other in a ring, each with one shortest loop. */
+export async function importCycles(
+  runtime: Runtime,
+  input: ImportCyclesToolInput,
+): Promise<string> {
+  const result = await getImportCycles(runtime.store, runtime.graph, {
+    ...(input.path === undefined ? {} : { pathPrefix: input.path }),
+  });
+  return formatImportCycles(result);
 }

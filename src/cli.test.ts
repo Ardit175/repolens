@@ -855,6 +855,29 @@ describe('repolens index, search and doctor with a store', () => {
     expect(result.symbols.map((s) => s.name)).toEqual(['t', 'dead']);
   });
 
+  it('cycles prints the files that import each other in a ring', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', "import { a } from './a.js';\nexport function b() { return a(); }\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'cycles');
+    expect(out).toContain('Import cycles (1) covering 2 files:');
+    expect(out).toContain('src/a.ts:1 imports ./b.js -> src/b.ts');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('cycles --json --path prints the result as JSON', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', "import { a } from './a.js';\nexport function b() { return a(); }\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'cycles', '--json', '--path', 'x');
+    expect(JSON.parse(out)).toMatchObject({ cycles: [], total: 0, truncated: false });
+  });
+
   it('tests rejects a bad --depth', async () => {
     await run('tests', 'a.ts', '--depth', '0');
     expect(err).toContain('must be a positive integer');
@@ -930,6 +953,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['impact', () => ['impact', 'a.ts']],
       ['tests', () => ['tests', 'a.ts']],
       ['unused', () => ['unused']],
+      ['cycles', () => ['cycles']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
     ])('%s passes --index to createRuntime, and undefined without it', async (_name, args) => {

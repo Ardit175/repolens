@@ -28,6 +28,7 @@ import {
   type DependencyDirection,
 } from './deps.js';
 import { createEmbeddingProvider, type EmbeddingProvider } from './embeddings/index.js';
+import { formatImportCycles, getImportCycles } from './cycles.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import {
   DEFAULT_IMPACT_DEPTH,
@@ -738,6 +739,24 @@ export function buildProgram(io: Io = defaultIo, deps: Deps = defaultDeps): Comm
       }
     },
   );
+
+  withIndexOption(
+    program
+      .command('cycles')
+      .description('List groups of files that import each other in a ring')
+      .option('--path <prefix>', 'only report cycles touching this directory prefix, e.g. src/')
+      .option('--json', 'print the import cycles as JSON'),
+  ).action(async (options: { path?: string; json?: boolean; index?: string }) => {
+    try {
+      const { store, graph } = deps.createRuntime(options.index);
+      const result = await getImportCycles(store, graph, {
+        ...(options.path === undefined ? {} : { pathPrefix: options.path }),
+      });
+      io.out((options.json ? JSON.stringify(result, null, 2) : formatImportCycles(result)) + '\n');
+    } catch (error) {
+      fail(io, error);
+    }
+  });
 
   program
     .command('indexes')

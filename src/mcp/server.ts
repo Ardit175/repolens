@@ -14,6 +14,7 @@ import {
   fileDependencies,
   findReferences,
   getSymbol,
+  importCycles,
   indexStatus,
   listFiles,
   MAX_GRAPH_DEPTH,
@@ -231,6 +232,23 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => unusedSymbols(runtime, input)),
+  );
+
+  server.registerTool(
+    'import_cycles',
+    {
+      description:
+        'Lists groups of indexed files that import each other in a ring, directly or through other files. Each group comes with one shortest import loop and the line of every import in it, largest group first, at most 50. Import resolution is by path, so packages, C# namespaces and Swift modules are not linked and cycles through them are not shown.',
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Only report cycles that touch a file under this directory, e.g. "src/"'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => importCycles(runtime, input)),
   );
 
   server.registerTool(

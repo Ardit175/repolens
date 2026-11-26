@@ -28,7 +28,7 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the eleven tools with schemas', async () => {
+  it('identifies itself and advertises the twelve tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -39,6 +39,7 @@ describe('repolens MCP server', () => {
       'file_dependencies',
       'find_references',
       'get_symbol',
+      'import_cycles',
       'index_status',
       'list_files',
       'search_code',
@@ -172,6 +173,14 @@ describe('repolens MCP server', () => {
     expect(filtered.text).not.toContain('AuthService');
     expect((await call('unused_symbols', { path: '' })).isError).toBe(true);
     expect((await call('unused_symbols', { include_tests: 'yes' })).isError).toBe(true);
+  });
+
+  it('import_cycles answers normally and rejects an empty path', async () => {
+    const found = await call('import_cycles', {});
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('Import cycles (0):');
+    expect((await call('import_cycles', { path: 'src/' })).isError).toBe(false);
+    expect((await call('import_cycles', { path: '' })).isError).toBe(true);
   });
 
   it('find_references lists calls and imports, and answers normally when there are none', async () => {
