@@ -11,6 +11,7 @@ import {
   fileDependencies,
   findReferences,
   getSymbol,
+  importCycles,
   indexStatus,
   listFiles,
   MAX_GRAPH_LEVEL_NODES,
@@ -352,5 +353,42 @@ describe('unusedSymbols', () => {
     const text = await unusedSymbols(await seededRuntime(), { path: 'nowhere/' });
     expect(text).toContain('Unused symbols (0) of 0');
     expect(text).toContain('(none)');
+  });
+});
+
+describe('importCycles', () => {
+  async function cyclic(): Promise<Runtime> {
+    const graph = new InMemoryGraphStore();
+    const edge = (path: string, module: string, line: number): GraphEdge => ({
+      path,
+      language: 'typescript',
+      kind: 'import',
+      target: 'x',
+      module,
+      line,
+    });
+    await graph.replaceFile('src/auth.ts', 'h', [edge('src/auth.ts', './db.js', 1)]);
+    await graph.replaceFile('src/db.ts', 'h', [edge('src/db.ts', './auth.js', 4)]);
+    return { ...(await seededRuntime()), graph };
+  }
+
+  it('answers (none) when no files import each other in a ring', async () => {
+    const text = await importCycles(await seededRuntime(), {});
+    expect(text).toContain('Import cycles (0):');
+    expect(text).toContain('(none)');
+  });
+
+  it('lists a cycle with the lines of its import loop', async () => {
+    const text = await importCycles(await cyclic(), {});
+    expect(text).toContain('Import cycles (1) covering 2 files:');
+    expect(text).toContain('1. 2 files: src/auth.ts, src/db.ts');
+    expect(text).toContain('src/auth.ts:1 imports ./db.js -> src/db.ts');
+    expect(text).toContain('src/db.ts:4 imports ./auth.js -> src/auth.ts');
+  });
+
+  it('keeps a cycle when a file under the path matches, and drops it otherwise', async () => {
+    const rt = await cyclic();
+    expect(await importCycles(rt, { path: 'src/' })).toContain('Import cycles (1)');
+    expect(await importCycles(rt, { path: 'scripts/' })).toContain('Import cycles (0):');
   });
 });

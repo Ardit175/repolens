@@ -19,7 +19,7 @@ describe('repolens serve over stdio', () => {
     try {
       await client.connect(transport);
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(11);
+      expect(tools).toHaveLength(12);
       const result = await client.callTool({ name: 'list_files', arguments: {} });
       expect(result.isError).toBe(true);
     } finally {
