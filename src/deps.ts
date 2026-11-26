@@ -77,7 +77,7 @@ function unknownFile(requested: string, indexed: ReadonlySet<string>): UnknownFi
 }
 
 /** For each (from, to) pair, the import edge with the lowest line. */
-function firstEdges(links: FileLinks): Map<string, Map<string, GraphEdge>> {
+export function firstEdges(links: FileLinks): Map<string, Map<string, GraphEdge>> {
   const byFrom = new Map<string, Map<string, GraphEdge>>();
   for (const { from, to, edge } of links.resolved) {
     const targets = byFrom.get(from) ?? new Map<string, GraphEdge>();
