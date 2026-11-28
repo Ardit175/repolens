@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.16.0](https://github.com/Ardit175/repolens/compare/repolens-v0.15.0...repolens-v0.16.0) (2026-11-28)
+
+
+### Features
+
+* add the import_cycles MCP tool and the repolens cycles command ([859cc9b](https://github.com/Ardit175/repolens/commit/859cc9b6955668905f7fd71fcfff4554b4187212))
+* add the unimported_files MCP tool and the repolens orphans command ([ee20ab4](https://github.com/Ardit175/repolens/commit/ee20ab4faba173115cec404d3794fcd1d5c48585))
+* find import cycles between indexed files ([b6745cb](https://github.com/Ardit175/repolens/commit/b6745cb37533ac1e03d1b0a86f49d8a134e04cbb))
+* find source files that no other indexed file imports ([c7a9154](https://github.com/Ardit175/repolens/commit/c7a9154880b59458a78becdf02adff5a357e56b6))
+* link Python submodule imports and list unimported files ([f272859](https://github.com/Ardit175/repolens/commit/f2728590df27d02e7072cadcacae1a5b0d16bcd9))
+* list import cycles between indexed files ([cabf8b1](https://github.com/Ardit175/repolens/commit/cabf8b1a19e4b1fe8e25edf90138e59bf368c518))
+
+
+### Bug Fixes
+
+* link Python from-imports of submodules to the submodule file ([60d942f](https://github.com/Ardit175/repolens/commit/60d942fa0056f40840d6ad379a6a492ba8360ffa))
+
 ## [0.15.0](https://github.com/Ardit175/repolens/compare/repolens-v0.14.0...repolens-v0.15.0) (2026-11-25)
 
 
