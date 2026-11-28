@@ -17,6 +17,7 @@ import {
   MAX_GRAPH_LEVEL_NODES,
   searchCode,
   ToolError,
+  unimportedFiles,
   unusedSymbols,
 } from './tools.js';
 
@@ -390,5 +391,30 @@ describe('importCycles', () => {
     const rt = await cyclic();
     expect(await importCycles(rt, { path: 'src/' })).toContain('Import cycles (1)');
     expect(await importCycles(rt, { path: 'scripts/' })).toContain('Import cycles (0):');
+  });
+});
+
+describe('unimportedFiles', () => {
+  it('lists the files nothing imports and skips entry directories', async () => {
+    const text = await unimportedFiles(await seededRuntime(), {});
+    expect(text).toContain('Unimported files (1) of 2 files checked:');
+    expect(text).toContain('  src/auth.ts (typescript, imports 1)');
+    expect(text).not.toContain('src/db.ts');
+    expect(text).not.toContain('scripts/seed.py');
+  });
+
+  it('filters by path and language, and can include tests', async () => {
+    const withTests = await seededRuntime({ withTests: true });
+    expect(await unimportedFiles(withTests, { path: 'src/', language: 'typescript' })).toContain(
+      'Unimported files (0) of 2',
+    );
+    const all = await unimportedFiles(withTests, { include_tests: true });
+    expect(all).toContain('src/auth.test.ts (typescript, imports 1)');
+  });
+
+  it('answers normally for a prefix that matches nothing', async () => {
+    const text = await unimportedFiles(await seededRuntime(), { path: 'nowhere/' });
+    expect(text).toContain('Unimported files (0) of 0');
+    expect(text).toContain('(none)');
   });
 });

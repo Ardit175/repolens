@@ -12,6 +12,7 @@ import { formatChangeImpact, getChangeImpact, UnknownSymbolError } from '../impa
 import type { Runtime } from '../runtime.js';
 import { describeMatch, searchIndex, type SearchMode } from '../search.js';
 import { formatIndexStatus, getIndexStatus } from '../status.js';
+import { formatUnimportedFiles, getUnimportedFiles } from '../orphans.js';
 import { formatUnusedSymbols, getUnusedSymbols } from '../unused.js';
 
 /** Raised for a request that is valid but has no answer, for example an unknown symbol. */
@@ -403,4 +404,23 @@ export async function importCycles(
     ...(input.path === undefined ? {} : { pathPrefix: input.path }),
   });
   return formatImportCycles(result);
+}
+
+export interface UnimportedFilesToolInput {
+  path?: string | undefined;
+  language?: string | undefined;
+  include_tests?: boolean | undefined;
+}
+
+/** The source files no other indexed file imports: likely dead files. */
+export async function unimportedFiles(
+  runtime: Runtime,
+  input: UnimportedFilesToolInput,
+): Promise<string> {
+  const result = await getUnimportedFiles(runtime.store, runtime.graph, {
+    ...(input.path === undefined ? {} : { pathPrefix: input.path }),
+    ...(input.language === undefined ? {} : { language: input.language }),
+    ...(input.include_tests === undefined ? {} : { includeTests: input.include_tests }),
+  });
+  return formatUnimportedFiles(result);
 }

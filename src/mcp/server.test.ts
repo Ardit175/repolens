@@ -28,7 +28,7 @@ async function call(name: string, args: Record<string, unknown>) {
 }
 
 describe('repolens MCP server', () => {
-  it('identifies itself and advertises the twelve tools with schemas', async () => {
+  it('identifies itself and advertises the thirteen tools with schemas', async () => {
     expect(client.getServerVersion()).toMatchObject({ name: 'repolens', version: '1.2.3' });
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -43,6 +43,7 @@ describe('repolens MCP server', () => {
       'index_status',
       'list_files',
       'search_code',
+      'unimported_files',
       'unused_symbols',
     ]);
     const search = tools.find((t) => t.name === 'search_code');
@@ -173,6 +174,17 @@ describe('repolens MCP server', () => {
     expect(filtered.text).not.toContain('AuthService');
     expect((await call('unused_symbols', { path: '' })).isError).toBe(true);
     expect((await call('unused_symbols', { include_tests: 'yes' })).isError).toBe(true);
+  });
+
+  it('unimported_files lists files nothing imports and validates its input', async () => {
+    const found = await call('unimported_files', {});
+    expect(found.isError).toBe(false);
+    expect(found.text).toContain('  src/auth.ts (typescript, imports 1)');
+    expect(found.text).not.toContain('src/db.ts');
+    const filtered = await call('unimported_files', { path: 'scripts/', language: 'python' });
+    expect(filtered.text).toContain('Unimported files (0) of 0');
+    expect((await call('unimported_files', { path: '' })).isError).toBe(true);
+    expect((await call('unimported_files', { include_tests: 'yes' })).isError).toBe(true);
   });
 
   it('import_cycles answers normally and rejects an empty path', async () => {
