@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { getImportCycles, type ImportCycles } from '../cycles.js';
 import { InMemoryGraphStore } from '../graph/store.js';
 import { indexRepository } from '../indexer.js';
 import { InMemoryVectorStore } from '../store/index.js';
@@ -47,10 +48,16 @@ const FILES: Record<string, string> = {
   'rb/app.rb': "require_relative 'lib/shop/cart'\nrequire 'json'\n",
   'php/src/Models/User.php': '<?php\nnamespace App\\Models;\n\nclass User {}\n',
   'php/src/index.php': "<?php\nuse App\\Models\\User;\nrequire 'Models/User.php';\n",
+  'py/app/__init__.py': 'VERSION = 1\n',
+  'py/app/helpers.py': 'def fmt():\n    return 1\n',
+  'py/app/models.py': 'from app import utils\n\n\ndef load():\n    return utils.read()\n',
+  'py/app/utils.py':
+    'from .helpers import fmt\nfrom app import models\n\n\ndef read():\n    return fmt()\n',
 };
 
 let dir: string;
 let data: MapData;
+let cycles: ImportCycles;
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'repolens-map-'));
@@ -62,18 +69,22 @@ beforeAll(async () => {
   const graph = new InMemoryGraphStore();
   await indexRepository({ root: dir, store, embeddings: new FakeEmbeddingProvider(), graph });
   data = await buildMapData(store, graph);
+  cycles = await getImportCycles(store, graph);
 });
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('buildMapData across languages', () => {
-  it('links imports in Go, JVM, Rust, C, Ruby and PHP to the files they name', () => {
+  it('links imports in Go, JVM, Rust, C, Ruby, PHP and Python to the files they name', () => {
     expect(data.links.map((l) => `${l.from} > ${l.to} (${l.weight})`)).toEqual([
       'cmd/main.go > cart/cart.go (1)',
       'cmd/main.go > cart/price.go (1)',
       'jvm/src/main/kotlin/com/acme/app/App.kt > jvm/src/main/java/com/acme/Shape.java (1)',
       'native/shapes.c > native/shapes.h (1)',
       'php/src/index.php > php/src/Models/User.php (2)',
+      'py/app/models.py > py/app/utils.py (1)',
+      'py/app/utils.py > py/app/helpers.py (1)',
+      'py/app/utils.py > py/app/models.py (1)',
       'rb/app.rb > rb/lib/shop/cart.rb (1)',
       'rs/src/shapes.rs > rs/src/lib.rs (1)',
     ]);
@@ -82,5 +93,9 @@ describe('buildMapData across languages', () => {
   it('counts standard library and package imports as unresolved', () => {
     // `fmt` (Go), `stdio.h` (C) and `json` (Ruby).
     expect(data.unresolvedImports).toBe(3);
+  });
+
+  it('finds the Python import cycle through a submodule import', () => {
+    expect(cycles.cycles.map((c) => c.files)).toEqual([['py/app/models.py', 'py/app/utils.py']]);
   });
 });

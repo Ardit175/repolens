@@ -40,6 +40,14 @@ function pythonFiles(modulePath: string): string[] {
   return [`${modulePath}.py`, `${modulePath}/__init__.py`];
 }
 
+/**
+ * Candidates for a submodule named by `from <module> import <target>`: `pkg/mod.py` or
+ * `pkg/mod/__init__.py`. Empty for `import x` and `from x import *`, which import the module.
+ */
+function pythonSubmoduleFiles(modulePath: string, target: string): string[] {
+  return target === '*' || target.includes('.') ? [] : pythonFiles(`${modulePath}/${target}`);
+}
+
 /** Resolves `.mod` or `..pkg.mod` against the importing file's directory. */
 function resolvePythonRelative(
   from: string,
@@ -55,13 +63,24 @@ function resolvePythonRelative(
     dir = path.posix.dirname(dir);
   }
   const modulePath = path.posix.join(dir, ...parts);
-  // `from . import util` names a sibling module through the imported name.
-  const submodule =
-    parts.length === 0 && target !== '*' ? pythonFiles(`${modulePath}/${target}`) : [];
+  // `from . import util` and `from .pkg import mod` name a submodule through the imported name.
   const own = parts.length === 0 ? [`${modulePath}/__init__.py`] : pythonFiles(modulePath);
   return firstIndexed(
-    [...submodule, ...own].map((p) => path.posix.normalize(p)),
+    [...pythonSubmoduleFiles(modulePath, target), ...own].map((p) => path.posix.normalize(p)),
     indexed,
+  );
+}
+
+/** Resolves an absolute dotted module, preferring a submodule named by the imported name. */
+function resolvePythonAbsolute(
+  module: string,
+  target: string,
+  indexed: ReadonlySet<string>,
+): string | undefined {
+  const modulePath = module.split('.').join('/');
+  return (
+    uniqueSuffixMatch(pythonSubmoduleFiles(modulePath, target), indexed) ??
+    uniqueSuffixMatch(pythonFiles(modulePath), indexed)
   );
 }
 
@@ -71,7 +90,7 @@ export const resolvePython: ImportResolver = (edge, { indexed }) => {
   if (module === undefined) return [];
   const found = module.startsWith('.')
     ? resolvePythonRelative(edge.path, module, edge.target, indexed)
-    : uniqueSuffixMatch(pythonFiles(module.split('.').join('/')), indexed);
+    : resolvePythonAbsolute(module, edge.target, indexed);
   return found === undefined ? [] : [found];
 };
 
