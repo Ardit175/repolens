@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getImportCycles, type ImportCycles } from '../cycles.js';
 import { InMemoryGraphStore } from '../graph/store.js';
 import { indexRepository } from '../indexer.js';
+import { getUnimportedFiles, type UnimportedFiles } from '../orphans.js';
 import { InMemoryVectorStore } from '../store/index.js';
 import { FakeEmbeddingProvider } from '../testing.js';
 import { buildMapData } from './build.js';
@@ -50,6 +51,7 @@ const FILES: Record<string, string> = {
   'php/src/index.php': "<?php\nuse App\\Models\\User;\nrequire 'Models/User.php';\n",
   'py/app/__init__.py': 'VERSION = 1\n',
   'py/app/helpers.py': 'def fmt():\n    return 1\n',
+  'py/app/legacy.py': 'def old():\n    return 1\n',
   'py/app/models.py': 'from app import utils\n\n\ndef load():\n    return utils.read()\n',
   'py/app/utils.py':
     'from .helpers import fmt\nfrom app import models\n\n\ndef read():\n    return fmt()\n',
@@ -58,6 +60,7 @@ const FILES: Record<string, string> = {
 let dir: string;
 let data: MapData;
 let cycles: ImportCycles;
+let orphans: UnimportedFiles;
 
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'repolens-map-'));
@@ -70,6 +73,7 @@ beforeAll(async () => {
   await indexRepository({ root: dir, store, embeddings: new FakeEmbeddingProvider(), graph });
   data = await buildMapData(store, graph);
   cycles = await getImportCycles(store, graph);
+  orphans = await getUnimportedFiles(store, graph);
 });
 
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -97,5 +101,17 @@ describe('buildMapData across languages', () => {
 
   it('finds the Python import cycle through a submodule import', () => {
     expect(cycles.cycles.map((c) => c.files)).toEqual([['py/app/models.py', 'py/app/utils.py']]);
+  });
+});
+
+describe('getUnimportedFiles across languages', () => {
+  it('lists only the files that nothing imports and that are not entry points', () => {
+    // Checked: TS/JS, Python, Ruby, Go and C/C++ headers. cart.go and price.go are imported by
+    // main.go, shapes.h by shapes.c, cart.rb by app.rb and helpers, models and utils by each
+    // other. main.go, app.rb and __init__.py are entry points and cart_test.go is a test.
+    // legacy.py is imported by nothing. Skipped (8): go.mod, Shape.java, App.kt, lib.rs,
+    // shapes.rs, shapes.c, User.php and index.php.
+    expect(orphans.files).toEqual([{ path: 'py/app/legacy.py', language: 'python', imports: 0 }]);
+    expect(orphans.skipped).toBe(8);
   });
 });
