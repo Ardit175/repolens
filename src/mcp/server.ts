@@ -23,6 +23,7 @@ import {
   MAX_SEARCH_RESULTS,
   searchCode,
   ToolError,
+  unimportedFiles,
   unusedSymbols,
 } from './tools.js';
 
@@ -249,6 +250,25 @@ export function createServer(runtime: Runtime, version: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     (input) => respond(() => importCycles(runtime, input)),
+  );
+
+  server.registerTool(
+    'unimported_files',
+    {
+      description:
+        'Lists indexed source files that no other indexed file imports, as candidates for dead files, at most 200. Each line shows how many imports the file itself makes. Test files are skipped unless include_tests is set (their imports still count as uses), and entry points that are run rather than imported (main, index, cli, app, server, __init__, bin/, scripts/, examples/, *.config.* files, Go packages with a main.go) are never listed. Only TS/JS, Python, Ruby, Go and C/C++ headers are checked; JVM, PHP, Rust, C#, Swift and C/C++ sources are left out and counted as skipped. Import resolution is by path, so files reached through packages, dynamic imports or framework conventions can show up here: candidates, not proof.',
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Only report files under this directory, e.g. "src/"'),
+        language: z.string().optional().describe('Only report this language, e.g. "typescript"'),
+        include_tests: z.boolean().optional().describe('Also report test files, default false'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (input) => respond(() => unimportedFiles(runtime, input)),
   );
 
   server.registerTool(

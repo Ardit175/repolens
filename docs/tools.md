@@ -15,6 +15,7 @@
 | `affected_tests`    | `paths` (1-50); optional `depth` (1-5, default 3)                                                         | The test files to run after changing those files, each with the reasons it was picked                    |
 | `unused_symbols`    | optional `path` prefix, `language`, `include_tests`                                                       | Functions and methods that no call and no named import refers to: likely dead code                       |
 | `import_cycles`     | optional `path` prefix                                                                                    | Groups of files that import each other in a ring, each with one shortest import loop                     |
+| `unimported_files`  | optional `path` prefix, `language`, `include_tests`                                                       | Source files that no other indexed file imports: likely dead files                                       |
 | `index_status`      | none                                                                                                      | Index name, embedding provider, counts, watcher state and warnings                                       |
 
 ## file_dependencies
@@ -123,6 +124,24 @@ Imports resolve by path only; packages, C# namespaces and Swift modules are not 
 ```
 
 The same output is available from the terminal with `repolens cycles [--path <prefix>] [--json] [--index <name>]`.
+
+## unimported_files
+
+Takes no required arguments and lists the indexed source files that no other indexed file imports, as candidates for dead files. `path` (a directory prefix such as `src/`) and `language` (such as `typescript`) limit which files are reported; imports are always counted across the whole index. `include_tests` (default false) also reports test files; imports made from test files count as uses either way. Each line ends with how many imports the file itself makes, which tells a leaf file from the root of a whole unused subtree.
+
+Only languages where a file is used through an import that resolves to its path are checked: TypeScript and JavaScript, Python, Ruby, Go, and C and C++ headers (`.h`, `.hpp`, `.hh`, `.hxx`). Java, Kotlin and Scala classes in one package are used without an import, PHP classes in one namespace need no `use`, Rust modules are reached by `mod x;` (not stored as an import), C# and Swift have no path resolution, and C and C++ sources are compiled, never included. Those files and non-code files are not listed; the output counts them as skipped. Files that are run or loaded by convention rather than imported are never listed: stems `main`, `index`, `cli`, `app`, `server`, `__main__`, `__init__`, `setup`, `conftest`, `manage`, `wsgi`, `asgi`, `lib` and `mod`, any file under a `bin/`, `scripts/` or `examples/` directory, `*.config.*` files, and Go files in a directory that has a `main.go`. Files are ordered by path and at most 200 are listed; the output says when it is cut.
+
+Imports resolve by path only, so a file reached through a package, a dynamic import or a framework convention can show up here. Read the list as candidates and check before deleting.
+
+```text
+Unimported files (2) of 14 files checked:
+  src/legacy/report.ts (typescript, imports 3)
+  src/old-helpers.ts (typescript, imports 0)
+Skipped 2 files whose language or kind is used without a path-resolvable import (for example JVM, PHP, Rust, C#, Swift, C/C++ sources).
+Only TS/JS, Python, Ruby, Go and C/C++ headers are checked, and imports resolve by path only, so files reached through packages, dynamic imports or framework conventions can show up here. They are candidates, not proof.
+```
+
+The same output is available from the terminal with `repolens orphans [--path <prefix>] [--language <lang>] [--include-tests] [--json] [--index <name>]`.
 
 ## index_status
 

@@ -76,6 +76,45 @@ describe('resolvePython', () => {
     expect(run(resolvePython, edge('python', 'm.py', 'os.path'), files)).toEqual([]);
     expect(run(resolvePython, edge('python', 'm.py', undefined), files)).toEqual([]);
   });
+
+  it('resolves a submodule named by the imported name before the package', () => {
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'util'), files)).toEqual([
+      'pkg/util.py',
+    ]);
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'sub'), files)).toEqual([
+      'pkg/__init__.py',
+    ]);
+    const nested = [...files, 'pkg/sub/__init__.py'];
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'sub'), nested)).toEqual([
+      'pkg/sub/__init__.py',
+    ]);
+    expect(run(resolvePython, edge('python', 'm.py', 'app.core', 'db'), files)).toEqual([
+      'app/core/db.py',
+    ]);
+    expect(run(resolvePython, edge('python', 'pkg/x.py', '.sub', 'mod'), files)).toEqual([
+      'pkg/sub/mod.py',
+    ]);
+  });
+
+  it('falls back to the module when the imported name is not a file', () => {
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'helper'), files)).toEqual([
+      'pkg/__init__.py',
+    ]);
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg.util', 'read'), files)).toEqual([
+      'pkg/util.py',
+    ]);
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', '*'), files)).toEqual([
+      'pkg/__init__.py',
+    ]);
+    const ambiguous = [...files, 'other/pkg/util.py', 'other/pkg/__init__.py'];
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'util'), ambiguous)).toEqual([
+      'pkg/util.py',
+    ]);
+    const onlySuffix = ['a/pkg/__init__.py', 'a/pkg/util.py', 'b/pkg/util.py'];
+    expect(run(resolvePython, edge('python', 'm.py', 'pkg', 'util'), onlySuffix)).toEqual([
+      'a/pkg/__init__.py',
+    ]);
+  });
 });
 
 describe('resolveInclude', () => {

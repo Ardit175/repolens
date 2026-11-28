@@ -855,6 +855,45 @@ describe('repolens index, search and doctor with a store', () => {
     expect(result.symbols.map((s) => s.name)).toEqual(['t', 'dead']);
   });
 
+  it('orphans prints the files nothing imports', async () => {
+    const { deps } = memory();
+    write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    write('src/c.ts', 'export function c() { return 2; }\n');
+    write('src/b.test.ts', "import { b } from './b.js';\nexport function t() { return b(); }\n");
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(deps, 'orphans');
+    expect(out).toContain('Unimported files (2) of 3 files checked:');
+    expect(out).toContain('src/a.ts (typescript, imports 1)');
+    expect(out).toContain('src/c.ts (typescript, imports 0)');
+    expect(out).not.toContain('b.test.ts');
+    expect(out.endsWith('\n')).toBe(true);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('orphans --json and the filters print the result as JSON', async () => {
+    const { deps } = memory();
+    write('src/b.ts', 'export function b() { return 1; }\n');
+    write('src/b.test.ts', 'export function t() { return 1; }\n');
+    write('lib/c.py', 'def other():\n    return 1\n');
+    await runWith(deps, 'index', dir);
+    out = '';
+    await runWith(
+      deps,
+      'orphans',
+      '--json',
+      '--path',
+      'src/',
+      '--language',
+      'typescript',
+      '--include-tests',
+    );
+    const result = JSON.parse(out) as { files: { path: string }[]; total: number };
+    expect(result.total).toBe(2);
+    expect(result.files.map((f) => f.path)).toEqual(['src/b.test.ts', 'src/b.ts']);
+  });
+
   it('cycles prints the files that import each other in a ring', async () => {
     const { deps } = memory();
     write('src/a.ts', "import { b } from './b.js';\nexport function a() { return b(); }\n");
@@ -953,6 +992,7 @@ describe('repolens index, search and doctor with a store', () => {
       ['impact', () => ['impact', 'a.ts']],
       ['tests', () => ['tests', 'a.ts']],
       ['unused', () => ['unused']],
+      ['orphans', () => ['orphans']],
       ['cycles', () => ['cycles']],
       ['map', (d: string) => ['map', '-o', path.join(d, 'm.html')]],
       ['bench', (d: string) => ['bench', d, '--queries', path.join(d, 'q.json'), '--qdrant']],
